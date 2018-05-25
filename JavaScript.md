@@ -1,4 +1,4 @@
-# JavaScript
+# JavaScript知识点总结
 
 ## 第1章 课程简介
 
@@ -617,7 +617,400 @@
     4. 待所有程序执行完，处于空闲状态时，会立马看有没有暂存起来的要执行；
     5. 发现暂存起来的setTimeout中的函数无需等待时间，就立即执行。
 
-* 
+* 其他知识点
+
+  * 日期
+
+    ```js
+    Date.now();			//获取当前时间毫秒数，Date是构造函数
+    var dt = new Date();
+    dt.getTime();		//获取毫秒数
+    dt.getFullYear();	//年
+    dt.getMonth();		//月（0-11）
+    dt.getDate();		//日（0-31）
+    dt.getHours();		//小时
+    dt.getMinutes();	//分钟（0-59）
+    dt.getSeconds();	//秒（0-59）
+    ```
+
+  * Math
+
+    ```js
+    Math.random();		// > 0, < 1，一般是用来清除缓存
+    ```
+
+  * 数组API
+
+    * ```forEach```：遍历所有元素
+
+    * ```every```：判断所有元素是否都符合条件
+
+    * ```some```：判断是否有至少一个元素符合条件
+
+    * ```sort```：排序
+
+    * ```map```：对元素重新组装，生成新数组
+
+    * ```filter```：过滤符合条件的元素
+
+      ```js
+      var arr = [4, 6, 5, 2, 3];
+      arr.forEach(function (item, index) {
+          //遍历数组的所有元素
+          console.log(index, item);
+      });
+      
+      var result = arr.every(function (item, index) {
+          //用来判断所有的数组元素，都满足一个条件
+          if (item < 4) {
+              return true;
+          }
+      });
+      console.log(result);			//false
+      
+      result = arr.some(function (item, index) {
+          //用来判断所有的数组元素，只要有一个满足一个条件即可
+          if (item < 4) {
+              return true;
+          }
+      });
+      console.log(result);			//true
+      
+      var arr2 = arr.sort(function (a, b) {
+          //从小到大排序
+          return a - b;
+          
+          //从大到小排序
+          //return b - a;
+      });
+      console.log(arr2); //[2, 3, 4, 5, 6]
+      
+      arr2 = arr.map(function (item, index) {
+          //将元素重新组装，并返回
+          return item + 'a';
+      });
+      console.log(arr2);			//["4a", "6a", "5a", "2a", "3a"]
+      
+      arr2 = arr.filter(function (item ,index) {
+          //通过某一个条件过滤数组
+          if (item >= 4) {
+              return true;
+          }
+      });
+      console.log(arr2);			//[4, 6, 5]
+      ```
+
+  * 对象API
+
+    ```js
+    var obj = {
+        x: 100,
+        y: 200,
+        z: 300
+    };
+    
+    var key;
+    for (key in obj) {
+        //注意这里的hasOwnProperty，再讲原型链时候讲过
+        if (obj.hasOwnProperty(key)) {
+            console.log(key, obj[key]);
+        }
+    }
+    ```
+
+## 第5章 JS-Web-API（上）
+
+### 5-1 从基础知识到JSWebAPI
+
+常说的JS（浏览器执行的JS）包含两部分：
+
+* JS基础知识：ECMA 262标准
+
+* JS-Web-API：W3C标准
+
+  * DOM操作
+
+  * BOM操作
+
+  * 事件绑定
+
+  * ajax请求（包括http协议）
+
+  * 存储
+
+    页面弹框是```window.alert(123)```，浏览器需要做：
+
+    * 定义一个window全局变量，对象类型
+    * 给它定义一个```alert```属性，属性值是一个函数
+
+    获取元素```document.getElementById(id)```，浏览器需要：
+
+    * 定义一个```document```全局变量，对象类型
+    * 给它定义一个```getElementById```属性，属性值是一个函数
+
+    > 但是W3C标准没有规定任何JS基础相关的东西，只管定义用于浏览器中JS操作页面的API和全局变量
+
+### 5-2 DOM本质
+
+* 题目
+
+  * DOM是哪种基本的数据结构
+
+    树
+
+* 知识点
+
+  * DOM本质
+
+    html是一种特殊的xml（有一些固定的规则）。
+
+  * DOM节点操作
+
+    * 获取DOM节点
+
+    * prototype（属性）
+
+      ```js
+      var pList = document.querySelectorAll('p');		//获取所有p标签
+      var p = pList[0];			//p本质上是个js对象
+      console.log(p.style.width);		//获取样式
+      p.style.width = '100px';		//修改样式
+      console.log(p.className);
+      
+      //style和className等都是p的prototype
+      ```
+
+    * Attribute
+
+      ```js
+      var pList = document.querySelectorAll('p');		//获取所有p标签
+      var p = pList[0];			//p本质上是个js对象
+      p.getAttribute('data-name');
+      p.setAttribute('style', 'font-size:30px;');
+      
+      //这里的attribute是html文档标签的属性，不是js对象的属性
+      <p data-name="" style="font-size:20px;"></p>
+      ```
+
+  * DOM结构操作
+
+    * 新增节点
+
+      ```js
+      var p1 = document.createElement('p');
+      ```
+
+    * 获取父元素
+
+      ```js
+      var parent = div1.parentElement;
+      ```
+
+    * 获取子元素
+
+      ```js
+      var childs = div.childNodes;
+      ```
+
+    * 删除节点
+
+### 5-8 BOM操作-知识点
+
+* 题目
+
+  * 如何监测浏览器的类型
+
+    ```js
+    var ua = navigator.userAgent
+    var isChrome = ua.indexOf('Chrome');
+    
+    //screen
+    console.log(screen.width);
+    
+    //location
+    console.log(location.href);
+    ```
+
+  * 拆解url的各部分
+
+## 第6章 JS-Web-API（下）
+
+### 6-1 事件-知识点
+
+* 知识点
+
+  * 通用事件绑定
+
+  * 事件冒泡
+
+    ```html
+    <!-- 点击激活弹出激活。点击取消弹出取消 -->
+    <body>
+        <div id="div1">
+            <p id="p1">取消</p>
+            <p id="p2">激活</p>
+            <p id="p3">激活</p>
+            <p id="p4">激活</p>
+        </div>
+        <div id="div2">
+            <p id="p5">取消</p>
+            <p id="p6">取消</p>
+        </div>
+    </body>
+    
+    <script>
+        var p1 = document.getElementById("p1");
+        var body = document.body;
+    
+        bindEvent(p1, 'click', function (e) {
+            e.stopPropatation();
+            alert("激活");
+        });
+        bindEvent(dody, 'click', function (e) {
+            alert("取消");
+        });
+        
+        function bindEvent(elem, type, selector, fn) {
+            if (fn == null) {
+                fn = selector;
+                selector = null;
+            }
+    
+            elem.addEventListener(type, function (e) {
+                var target;
+                if (selector) {     //使用代理
+                    target = e.target;
+                    if (target.matches(selector)) {
+                        fn.call(target, e);
+                    }
+                }else {         //不使用代理
+                    fn(e);
+                }
+            })
+        }
+    </script>
+    ```
+
+  * 代理
+
+    ```html
+    <body>
+        <div id="div1">
+            <p id="p1">取消</p>
+            <p id="p2">激活</p>
+            <p id="p3">激活</p>
+            <p id="p4">激活</p>
+        </div>
+        <div id="div2">
+            <p id="p5">取消</p>
+            <p id="p6">取消</p>
+        </div>
+    </body>
+    
+    <script>
+        var p1 = document.getElementById("p1");
+        var body = document.body;
+    
+        bindEvent(body, 'click', 'a', function (e) {
+            console.log(this.innerHTML);
+        });
+    </script>
+    ```
+
+### 6-4 Ajax-XMLHttpRequest
+
+* 题目：
+
+  * 跨域的几种实现方式
+
+* 知识点
+
+  * XMLHttpRequest
+
+  * 状态码说明
+
+    ![](http://static.zybuluo.com/vermouth9/wyzylnflb9s3cge5grhdsmh9/image.png)
+
+  * 跨域
+
+    * 什么是跨域
+
+      > 浏览器有同源策略，不允许ajax访问其他域接口
+
+      跨域条件：协议、域名、端口，有一个不同就算跨域
+
+      有三个标签允许跨域加载资源
+
+      * ```<img src='xxx'>```
+      * ```<link href='xxx'>```
+      * ```<script src='xxx'></script>```
+
+      所有跨域请求都必须经过信息提供方允许。
+
+      如果未经允许即可获取，那是浏览器同源策略出现漏洞。
+
+    * 解决方案：
+
+      * JSONP
+
+        ```html
+        <script>
+            window.callback = function (data) {
+                console.log(data);
+            }
+        </script>
+        <script src="http://coding.m.imooc.com/api.js"></script>
+        <!-- 以上将返回callback({x:100, y:200})，也就是返回的是  
+        		调用callback()的代码，传入的参数是{x:100, y: 200} 
+        -->
+        ```
+
+        这个方法需要前端和后端的协商，后端需要返回JS的一个片段（调用页面中的某个函数，同时传入参数），但是需要前端页面中有这个函数。
+
+      * 服务器端设置http header
+
+        需要服务器端来做。
+
+### 6-6 存储
+
+* 题目
+
+  * 请描述一下cookie，sessionStorage和localStorage的区别。
+
+* 知识点
+
+  * cookie
+
+    本身用于客户端和服务器端通信
+
+    但是它有本地存储的功能，于是就被“借用”
+
+    使用```document.cookie=```来获取和设置
+
+    * 缺点：
+      * 存储量太小，只有4KB
+      * 所有http请求都带着，会影响获取资源的效率
+      * API简单，需要封装才能用 
+
+  * localStorage和sessionStorage
+
+    * HTML专门为存储而设计，最大容量5M（因为不需要在请求中带着）
+    * API简单易用
+    * ```localStorage.setItem(key, value);```，```localStorage.getItem(key);```
+
+## 第7章 开发环境
+
+### 7-3 git常用命令
+
+* ```git add.```
+* ```git checkout xxx```：还原回去
+* ```git commit -m "xxx"```：把改动提交到本地
+* ```git push origin master```：把改动提交到远程仓库
+* ```git pull origin master```：从远程仓库更新本地代码。
+
+
+
+
 
 
 

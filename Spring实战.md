@@ -853,6 +853,9 @@ public clas WebConfig {
 ```java
 package spittr.config;
 
+/**
+ * 加载包含Web组件的bean，如控制器，视图解析器，处理器映射器
+ */
 //最小但可用的Spring MVC配置
 @Configuration
 @EnableWebMvc			//启用Spring MVC
@@ -881,11 +884,14 @@ public clas WebConfig extends WebMvcConfigurerAdapter {
 ```java
 package spitter.config;
 
+/**
+ * 加载其他bean，如驱动应用后端的中间层和数据层组件
+ */
 @Configuration
 @ComponentScan(basePackages = {"spitter"}, 
         excludeFilters = {
             @ComponentScan.Filter(type = FilterType.ANNOTATION, value = EnableWebMvc.class)
-        })
+        })		//扫描除了WebConfig类之外的其他带有spring注解的类
 public class RootConfig {
 }
 ```
@@ -1072,6 +1078,7 @@ package spittr.config;
 @EnableWebMvc			//启用Spring MVC
 @ComponentScan("spittr.web")				//启动组件扫描
 public clas WebConfig extends WebMvcConfigurerAdapter {
+    //Spring 5以后WebMvcConfigurerAdapter过期了，可以implements WebMvcConfigurer代替
     
    	@Bean
    	public ViewResolver viewResolver(SpringTemplateEngine templateEngine) {//Thymeleaf视图解析器
@@ -1267,3 +1274,164 @@ public String showSpitterProfile (
 ## 第8章 使用Spring Web Flow
 
 Spring Web Flow是Spring MVC的扩展，它支持开发基于流程的应用程序。
+
+## 第9章 保护Web应用
+
+安全性是绝大部分应用程序中的一个重要***切面***。
+
+### 9.1 Spring Security简介
+
+它能够在Web请求级别和方法调用级别处理身份认证和授权。Spring Security还能够使用Spring AOP保护方法调用——借助于**对象代理和使用通知**，能够确保只有具备适当权限的用户才能访问安全保护的方法。
+
+#### 9.1.2 过滤Web请求
+
+Spring Security借助一系列**Servlet Filter**来提供各种安全性功能。
+
+```DelegatingFilterProxy```是一个特殊的Servlet Filter， 任务就是将工作委托给一个```javax.servlet.Filter```实现类，这个实现类作为一个```<bean>```注册在Spring应用的上下文中。
+
+在web.xml中：
+
+```xml
+<filter>
+	<filter-name>springSecurityFilterChain</filter-name>
+    <filter-class>
+    	org.springframework.web.filter.DelegatingFilterProxy
+    </filter-class>
+</filter>
+```
+
+这里最重要的是```<filter-name>```设置成了```springSecurityFilterChain```。这是因为我们马上就会将Spring Security 配置在Web安全性之中，这里会有一个名为springSecurityFilterChain的Filter bean，DelegatingFilterProxy会将过滤逻辑委托给它。
+
+```java
+package spitter.config;
+
+import org.springframework.security.web.context.AbstractSecurityWebApplicationInitializer;
+
+public class SecurityWebInitializer 
+        extends AbstractSecurityWebApplicationInitializer {
+}
+```
+
+```AbstractSecurityWebApplicationInitializer```实现了```WebApplicationInitializer```，因此Spring会发现它，并用它在Web容器中注册```DelegatingFilterProxy```。
+
+不管我们通过web.xml还是通过AbstractSecurityWebApplicationInitializer的子类来配置DelegatingFilterProxy，它都会拦截发往应用中的请求，并将请求委托给ID为```springSecurityFilterChain```的 bean。
+
+#### 9.1.3 编写简单的安全性配置
+
+Spring 3.2引入了新的Java配置方案，完全不再需要通过XML来配置安全性功能。
+
+```java
+package spitter.config;
+
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.web.context.AbstractSecurityWebApplicationInitializer;
+
+@Configuration
+@EnableWebSecurity
+public class SecurityWebInitializer
+        extends AbstractSecurityWebApplicationInitializer {
+}
+```
+
+```@EnableWebSecurity```注解将会启用Web安全供能，但它本身没有什么用处，Spring Security必须配置在：
+
+* 一个实现了```WebSecurityConfigurer```的bean中
+* 继承```WebSecurityConfigurerAdapter```（最简单的方式）。
+
+```java
+@Configuration
+@EnableWebMvcSecurity       //已过期，Spring4.0中用@EnableWebSecurity代替
+public class SecurityConfig extends WebSecurityConfigurerAdapter {
+}
+```
+
+如果希望指定Web安全的细节，需要通过重载```WebSecurityConfigurerAdapter``中的一个或多个方法来实现。
+
+| 方法·                                   | 描述                                    |
+| --------------------------------------- | --------------------------------------- |
+| configure(WebSecurity)                  | 通过重载，配置Spring Security的Filter链 |
+| configure(HttpSecurity)                 | 通过重载，配置如何通过拦截器保护请求    |
+| configure(AuthenticationManagerBuilder) | 通过重载，配置user-detail服务           |
+
+```java
+@Override
+protected void configure(HttpSecurity http) throws Exception {
+    http
+        .authorizeRequests()
+        .anyRequest().authenticated()
+        .and()
+        .formLogin()
+        .and()
+        .httpBasic();
+}
+```
+
+这个配置指定了该如何保护HTTP请求，以及客户端认证用户的方案。通过调用```authorizeRequests()```和```anyRequest().authenticated()```就会要求所有进入应用的HTTP请求都要进行认证。它也配置Spring Security支持基于表单的登录以及HTTP Basic方式的认证。
+
+同时，因为我们没有重载configure(AuthenticationManagerBuilder)方法，所以没有用户存储支撑认证过程。没有用户存储，实际上就等于没有用户。所以，在这里所有的请求都需要认证，但是没有人能够登录成功。
+
+为了让Spring Security满足我们应用的需求，还需要再添加一点配置：
+
+* 配置用户存储；
+* 指定哪些请求需要认证，哪些请求不需要认证，以及所需要的权限；
+* 提供一个自定义的登录页面，替代原来简单的默认登录页。
+
+### 9.2 选择查询用户详细信息的服务
+
+Spring Security能够基于各种数据存储来认证用户。它内置了多种常见的用户存储常见、如内存、关系型数据库以及LDAP，以及自定义的用户存储实现。
+
+#### 9.2.1 使用基于内存的用户存储
+
+因为继承了```WebSecurityConfigurerAdapter```，因此配置用户存储的最简单方式就是重载```configure()```方法，并以```AuthenticationManagerBuilder```作为传入参数。通过```inMemoryAuthentication()```方法，我们可以启用、配置并任意填充基于内存的用户存储。
+
+```java
+@Override
+protected void configure(AuthenticationManagerBuilder auth) throws Exception {
+    auth
+        .inMemoryAuthentication()
+        	.withUser("user").password("password").roles("USER")
+        .and()
+        	.withUser("admin").password("password").roles("USER", "ADMIN");
+}
+```
+
+ 上面和下面等价：
+
+```java
+@Override
+    protected void configure(AuthenticationManagerBuilder auth) throws Exception {
+        auth
+            .inMemoryAuthentication()
+            .withUser("sherry").password("password").authorities("ROLE_USER")
+            .and()
+            .withUser("admin").password("password").authorities("ROLE_USER", "ROLE_ADMIN");
+    }
+```
+
+#### 9.2.2 基于数据库表进行认证
+
+用户数据通常会存储在关系型数据库中，并通过JDBC进行访问。为了配置Spring Security使用以JDBC为支撑的用户存储，可以使用```jdbcAuthentication()```方法。
+
+```java
+@Override
+protected void configure(AuthenticationManagerBuilder auth) throws Exception {
+    auth
+        .jdbcAuthentication()
+        .dataSource(datasource)
+        .usersByUsernameQuery(
+        "select username, password, true from spitter where username=?"
+    )
+        .authoritiesByUsernameQuery(
+        "select username, 'ROLE_USER' from spitter where username=?"
+    )
+        .passwordEncoder(new StandardPasswordEncoder("53cr3t"));
+}
+```
+
+必须配置的是一个DataSource。
+
+# 第3部分 后端中的Spring
+
+## 第10章 通过Spring和JDBC征服数据库
+
