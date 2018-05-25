@@ -28,7 +28,7 @@
 
   => JS继承算法
 
-## 第2章 JS基础知识(上)
+## 第2章 JS基础知识（上）
 
 ### 2-1 变量类型和计算
 
@@ -264,7 +264,362 @@
 
       f 的```__proto__```一层一层往上，能否对应到```Foo.prototype```
 
-  
+## 第3章 JS基础知识（中）
+
+### 3-1 作用域和闭包-执行上下文
+
+* 题目
+
+  * 说一下对变量提升的理解
+
+    * 变量定义
+    * 函数声明（注意和函数表达式的区别）
+
+  * 说明this几种不同的使用场景
+
+  * 创建10个```<a>```标签，点击的时候弹出来对应的序号
+
+    ```js
+    //这是一个错误的写法
+    var i, a;
+    for (i = 0; i < 10; i++) {
+        a = document.createElement('a');
+        a.innerHTML = i + '<br/>';
+        a.addEventListener('click', function (e) {
+            e.preventDefault();
+            alert(i);		//当执行onClick()方法时，i是自由变量，去父作用域去找，此时i === 10
+        })
+        document.body.appendChild(a);
+    }
+    
+    //正确写法是：
+    //这是一个错误的写法
+    var i;
+    for (i = 0; i < 10; i++) {
+        (function (i) {
+            var a = document.createElement('a');
+            a.innerHTML = i + '<br/>';
+            a.addEventListener('click', function (e) {
+                e.preventDefault();
+                alert(i);		
+            })
+            document.body.appendChild(a);
+        })(i);   	//相当于每次循环都生成一个函数
+    }
+    ```
+
+  * 如何理解作用域
+
+  * 实际开发中闭包的应用
+
+    * 封装变量
+
+    * 收敛权限
+
+      ```js
+      function isFirstLoad() {
+          var _list = [];
+          return function (id) {
+              if(_list.indexOf(id) >= 0) {
+                  return false;
+              }else {
+                  _list.push(id);
+                  return true;
+              }
+          }
+      }
+      
+      //这样可以防止_list被人修改，isFirstLoad函数外面根本不可能修改掉 _list 的值
+      var firstLoad = isFirstLoad();
+      firstLoad(10);		//true
+      firstLoad(10);		//false
+      firstLoad(20);		//true
+      ```
+
+      
+
+* 知识点
+
+  * 执行上下文
+
+    ```js
+    //在这个script里面，会定义一个全局的执行上下文
+    //执行第一行之前，会把这个script中的所有的变量和函数的声明都拿过来：a（还没有赋值），fn（把整个函数拿过来）。
+    console.log(a);		
+    // undefined：因为a已经声明了，但是还没执行到，所以没有赋值，此时就用undefined占位
+    var a = 100;
+    
+    fn('zhangsan');		
+    // 'zhangsan' 20：因为执行fn()之前已经把整个函数都拿出来了，所以可以执行
+    function fn(name) {
+        age = 20;
+        console.log(name, age);
+        var age;
+    }
+    ```
+
+    ```js
+    //上诉代码相当于：
+    var a;
+    function fn(name) {
+        //var this;		//自身的引用
+        //var name;		//参数name值
+        //var age;		/*在执行之前会相当于有这几个的声明*/
+        age = 20;
+        console.log(name, age);
+    }
+    ```
+
+    
+
+    * 范围执行上下文：一段```<script>```或者一个函数
+    * 全局执行上下文：变量定义、函数声明
+    * 函数执行上下文：变量定义、函数声明、this、arguments
+
+    **注**：注意函数声明和函数表达式的区别
+
+    ```js
+    var fn1 = function () {}		//函数表达式
+    function fn2() {}				//函数声明
+    
+    fn()		//不会报错		
+    function fn() {}
+    
+    fn2()		//会报错，因为在最开始相当于有一个var fn2 = undefined
+    var fn2 = function() {}
+    ```
+
+  * this
+
+    **this要在执行时才能确认值，定义时无法确认**
+
+    ```js
+    var a = {
+        name: 'A',
+        fn: function () {
+            console.log(this.name);
+        }
+    }
+    a.fn();  // this === a
+    a.fn.call({name: 'B'});		//this === {name: 'B'}
+    var fn1 = a.fn;
+    fn1();		// this === window
+    ```
+
+    * 作为构造函数执行
+
+      ```js
+      function Foo(name) {
+          // this = {}
+          this.name = name;
+          //return this;		//等价于加上注释的这两行
+      }
+      var f = new Foo('zhangsan');
+      ```
+
+    * 作为对象属性执行
+
+      ```js
+      var obj = {
+          name: 'A',
+          printName: function () {
+              console.log(this.name);
+          }
+      }
+      obj.printName()		//此时this就是obj
+      ```
+
+    * 作为普通函数执行：window
+
+      ```js
+      function fn() { console.log(this); }
+      fn();			//this === window
+      ```
+
+    * call、apply、bind：**最常用的是call**
+
+      ```js
+      function fn1(name, age) { 
+      	alert(name);
+          console.log(this); 
+      }
+      fn1.call({x: 100}, 'zhangsan', 20);			//this === {x: 100}, name = 'zhangsan'
+      fn1.apply({x: 100}, ['zhangsan', 20]);		//更常用call
+      
+      var fn2 = function (name, age) { 
+      	alert(name);
+          console.log(this); 
+      }.bind({y:200})				//.bind必须是函数表达式
+      fn2('zhangsan', 20);		//此时 this === {y: 200}
+      ```
+
+  * 作用域
+
+    * JS没有块级作用域
+
+    * 只有函数和全局作用域
+
+      ```js
+      //无块级作用域
+      if (true) {
+          var name = 'zhangsan';
+      }
+      console.log(name);
+      
+      //函数和全局作用域
+      var a = 100;
+      function fn() {
+          var a = 200;
+          console.log('fn', a);		//fn 200
+      }
+      console.log('global', a);		//global 100
+      fn();
+      console.log('global', a);		//global 100
+      ```
+
+  * 作用域链
+
+    作用域链：一个自由变量在**执行时**一直不断地往父级作用域中去找。
+
+    * **函数的父级作用域是函数定义时候的父级作用域，不是执行的时候的**。函数在哪定义，那父级作用域就在哪。
+
+      ```js
+      var a = 100;
+      function fn() {
+          var b = 200;
+          
+          //当前作用域没有定义的变量，即“自由变量”
+          //执行时自由变量去父级作用域中去找
+          //fn的父级作用域就是全局作用域
+          console.log(a);
+          console.log(b);
+      }
+      fn();
+      ```
+
+      ```js
+      var a = 100;
+      function F1() {
+          var b = 200;
+          function F2() {		//F2的父级作用域是F1
+              var c = 300;
+              console.log(a);	//a 是自由变量
+              console.log(b);	//b 是自由变量
+              console.log(c);
+          }
+          F2();
+      }
+      F1();
+      ```
+
+  * 闭包
+
+    闭包的使用场景：
+
+    * 函数作为返回值
+
+      ```js
+      function F1() {
+          var a = 100;		//F1作用域中的a
+          
+          //返回一个函数（函数作为返回值）
+          return function() {
+              console.log(a);			//a是个自由变量，去父级作用域中去找
+          }
+      }
+      var f1 = F1();
+      var a = 200;		//全局作用域中的a，和F1作用域中的a无关
+      f1();			// 100
+      ```
+
+      
+
+    * 函数作为参数传递
+
+      ```js
+      function F1() {
+          var a = 100;		//F1作用域中的a
+          return function() {
+              console.log(a);			//a是个自由变量，去父级作用域中去找
+          }
+      }
+      var f1 = F1();
+      
+      function F2(fn) {
+          var a = 200;
+          fn();
+      }
+      var a = 300;
+      F2(f1);		// 100
+      ```
+
+## 第4章 JS基础知识（下）
+
+### 4-1 异步和单线程-什么是异步
+
+* 题目
+
+  * 同步和异步的区别是什么？分别举一个同步和异步的例子
+
+    同步会阻塞代码执行，而异步不会。
+
+  * 一个关于setTimeout的笔试题
+
+    ```js
+    console.log(1);
+    setTimeout(function () {
+        console.log(2);
+    });
+    console.log(3);
+    setTimeout(function () {
+        console.log(4);
+    }, 1000);
+    console.log(5);
+    //1 3 5 2 4
+    ```
+
+  * 前端使用异步的场景有哪些
+
+* 知识点
+
+  * 什么是异步
+
+    ```js
+    console.log(100);
+    setTimeout(function () {
+        console.log(200);
+    }, 1000);
+    console.log(300);
+    ```
+
+  * 前端使用异步的场景
+
+    * 定时任务：setTimeout，setInterval
+    * 网络请求：ajax请求，动态```<img>```加载
+    * 事件绑定
+
+  * 异步和单线程
+
+    ```js
+    console.log(100);
+    setTimeout(function () {
+        console.log(200);
+    });
+    console.log(300);
+    //执行结果是100， 300， 200
+    ```
+
+    上例的执行流程：
+
+    1. 执行第一行，打印100；
+    2. 执行setTimeout后，传入setTimeout的函数会被暂存起来，不会立即执行（单线程的特点，不能同时干两件事）；
+    3. 执行最后一行，打印300；
+    4. 待所有程序执行完，处于空闲状态时，会立马看有没有暂存起来的要执行；
+    5. 发现暂存起来的setTimeout中的函数无需等待时间，就立即执行。
+
+* 
+
+
 
 
 

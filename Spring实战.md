@@ -1100,3 +1100,170 @@ public clas WebConfig extends WebMvcConfigurerAdapter {
 
 ## 第7章 Spring MVC的高级技术
 
+### 7.1 Spring MVC配置的替代方案
+
+#### 7.1.3 在web.xml中声明DispatcherServlet
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app version="2.5" 
+    xmlns="http://java.sun.com/xml/ns/javaee" 
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://java.sun.com/xml/ns/javaee 
+        http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd">
+    
+    <context-param>		<!-- 使用Java配置，不使用xml配置 -->
+        <param-name>contextClass</param-name>
+        <param-value>
+        	org.springframework.web.context.support.AnnotationConfigWebApplicationContext
+        </param-value>
+    </context-param>
+    
+    <context-param>		<!-- 指定根配置类 -->
+        <param-name>contextConfigLocation</param-name>
+        <param-value>
+        	com.habuma.spitter.config.RootConfig
+        </param-value>
+    </context-param>
+    
+    <listener>
+    	<listener-class>
+        	org.springframework.web.context.ContextLoaderListener
+        </listener-class>
+    </listener>
+    
+    <servlet>
+    	<servlet-name>appServlet</servlet-name>
+        <servlet-class>org.springframework.web.servlet.DispatcherServlet</servlet-class>
+        <init-param>
+        	<param-name>contextClass</param-name>
+            <param-value>
+               org.springframework.web.context.support.AnnotationConfigWebApplicationContext
+            </param-value>
+        </init-param>
+        <init-param>
+        	<param-name>contextConfigLocation</param-name>
+            <param-value>
+               com.habuma.spitter.config.WebConfigConfig
+            </param-value>
+        </init-param>
+        <load-on-startup>1</load-on-startup>
+        <multipart-config>			<!-- 配置文件上传 -->
+        	<location>/tmp/spitter/uploads</location>
+            <max-file-size>2097152</max-file-size>
+            <max-request-size>4194304</max-request-size>
+        </multipart-config>
+    </servlet>
+    
+    <servlet-mapping>
+    	<servlet-name>appServlet</servlet-name>
+        <url-pattern>/</url-pattern>
+    </servlet-mapping>
+    
+</web-app>
+```
+
+### 7.2 处理multipart形式的数据
+
+#### 7.2.2 处理multipart请求
+
+```html
+<form method="POST" enctype="multipart/form-data">
+    <input type="file" accept="image/jpeg, image/png" />
+</form>
+```
+
+```java
+@PostMapping(vale = "/register")
+public String processRegistration (
+    @RequestPart("profilePicture") byte[] profilePicture,
+) {
+    ...
+}
+```
+
+### 7.4 为控制器添加通知
+
+作用：在多个控制器中处理异常。
+
+控制器通知是任意带有```@ControllerAdvice```注解的类，这个类包含一个或多个如下类型的方法：
+
+* ```@ExceptionHandler```注解标注的方法
+* ```@InitBinder```注解标注的方法
+* ```@ModelAttribute```注解标注的方法
+
+```java
+//统一异常处理
+@ControllerAdvice
+public class AppWideExceptionHandler {
+    @ExceptionHandler(Exception.class)
+    public String exceptionHandler() {
+        return "error/error";
+    }
+}
+```
+
+### 7.5 跨重定向请求传递数据
+
+***在处理完POST请求后，一个最佳实践就是执行一下重定向***。可以防止用户点击浏览器的刷新按钮或后退箭头时，客户端重新执行危险的POST请求。
+
+> 一般来讲，当一个处理器方法完成之后，该方法所指定的模型数据将会复制到请求中，并作为请求中的属性，请求会转发到视图上进行渲染。因为控制器方法和视图所处理的是**同一个请求**，所以在转发的过程中，请求属性能够得以保存。
+
+对于重定向来说，传递数据的方案：
+
+* 使用URL模版以路径变量和```/```或查询参数的形式传递数据
+* 通过flash属性发送数据
+
+#### 7.5.1 通过URL模版进行重定向
+
+```java
+@PostMapping(value = "/register")
+public String processRegistration (
+	Spitter spitter, Model model
+) {
+    spitterRepository.save(spitter);
+    model.addAttribute("username", "vermouth");
+    model.addAttribute("spitterId", 121112);
+    return "redirect:/spitter/{username}";		//"redirect:/spitter/vermouth?spitterId=121112"
+}
+```
+
+这种方式的话username中所有的不安全字符都会进行转义，会更加安全。
+
+这种方式的缺点：只能发送简单的值，没有办法发送更为复杂的值。
+
+#### 7.5.2 使用flash属性
+
+如果要发送spitter对象，就不能像路径变量或查询参数一样发送。
+
+有个解决办法是将spitter放到会话中，**会话能够长期存在，并且能跨越多个请求**。
+
+Spring提供了通过RedirectAttributes设置flash属性的方法，RedirectAttributes提供了```addFlashAttribute()```方法来添加flash属性。
+
+> 在重定向执行之前，所有的flash属性都会复制到会话中，在重定向后，存在会话中的flash属性会被取出，并从会话转移到模型之中。
+
+```java
+@PostMapping(value = "/spitter/register")
+public String processRegistration (
+	Spitter spitter, RedirectAttributes model
+) {
+    spitterRepository.save(spitter);
+    model.addAttribute("username", "vermouth");
+    model.addFlashAttribute("spitter", spitter);
+    return "redirect:/spitter/{username}";		
+}
+
+@GetMapping(value = "/spitter/{username}")
+public String showSpitterProfile (
+	@PathVariable String username, Model model
+) {
+    if(!model.containsAttribute("spitter")) {
+		model.addAttribute(spitterRepository.findByUsername(username));
+    }		
+    return "profile";
+}
+```
+
+## 第8章 使用Spring Web Flow
+
+Spring Web Flow是Spring MVC的扩展，它支持开发基于流程的应用程序。
