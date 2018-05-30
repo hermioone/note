@@ -874,5 +874,330 @@ public class TestController {
 */
 ```
 
+## 5-5 server-sent events
 
+Flux返回多次数据是怎么实现的？Http协议是基于一问一答的形式。
+
+**答**：用到的是H5的server-sent events
+
+```java
+@WebServlet(name = "SSE", urlPatterns = "/sse", loadOnStartup = 1)
+public class SSE extends HttpServlet {
+    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+
+    }
+
+    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        //这两个字段必须设置
+        response.setContentType("text/event-stream");
+        response.setCharacterEncoding("utf-8");
+
+        for (int i = 0; i < 5; i++) {
+            response.getWriter().write("data: " + i + "\n\n");      //固定格式data:xxx\n\n
+            response.getWriter().flush();
+
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+}
+```
+
+可以用于服务器向前端推送数据
+
+```html
+<%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<html>
+  <head>
+    <title></title>
+  </head>
+  <body>
+
+
+  <script type="text/javascript">
+      //初始化，参数为url
+      var sse = new EventSource("sse");		//和服务器端的 urlPatterns 相等
+      sse.onmessage = function (evt) {
+          console.log("message: ", evt.data, evt);
+          if (e.data == 3) {
+              sse.close();
+          }
+      }
+  </script>
+  </body>
+</html>
+```
+
+前端浏览器访问这个页面的时候，会自动监听```/sse```这个url，如果有数据到达，就在控制台输出。
+
+## 5-6 完整例子
+
+整合mongodb
+
+### 1. 添加依赖
+
+```xml
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-data-mongodb-reactive</artifactId>
+</dependency>
+```
+
+### 2. 添加注解
+
+```java
+@SpringBootApplication
+@EnableMongoRepositories
+public class WebfluxApplication {
+
+	public static void main(String[] args) {
+		SpringApplication.run(WebfluxApplication.class, args);
+	}
+}
+```
+
+### 3. 定义对象
+
+```java
+@Document(collection = "user")
+public class User {
+
+    @Id
+    private String id;
+
+    private String name;
+
+    private int age;
+
+    public String getId() { return id; }
+
+    public void setId(String id) { this.id = id; }
+
+    public String getName() { return name; }
+
+    public void setName(String name) { this.name = name; }
+
+    public int getAge() { return age; }
+
+    public void setAge(int age) { this.age = age; }
+
+    @Override
+    public String toString() {
+        return "User{" +
+                "id='" + id + '\'' +
+                ", name='" + name + '\'' +
+                ", age=" + age +
+                '}';
+    }
+}
+```
+
+### 4. 定义仓库
+
+```java
+@Repository
+public interface UserRepository extends ReactiveMongoRepository<User, String> {
+}
+```
+
+### 5. Controller
+
+```java
+@RestController
+@RequestMapping(value = "/user")
+public class UserController {
+
+    private final UserRepository repository;
+
+    /**
+     * 推荐这种写法，和spirng的耦合度更低
+     * @param userRepository
+     */
+    public UserController(UserRepository userRepository) {
+        this.repository = userRepository;
+    }
+
+    /**
+     * 以数组形式一次返回数据
+     * @return
+     */
+    @GetMapping(value = "/")
+    public Flux<User> getAll() {
+        return repository.findAll();
+    }
+
+    /**
+     * 以SSE形式多次返回数据
+     * @return
+     */
+    @GetMapping(value = "/stream/all", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Flux<User> streamGetAll() {
+        return repository.findAll();
+    }
+
+    @PostMapping(value = "/")
+    public Mono<User> createUser(User user) {
+        //spring data jpa中，新增和修改都是save，有id是修改，id为空是新增
+        return this.repository.save(user);
+    }
+
+    /**
+     * 根据id删除用户
+     * 存在的时候返回200，不存在返回404
+     * @param id
+     * @return
+     */
+    @DeleteMapping("/{id}")
+    public Mono<ResponseEntity<Void>> deleteUser(@PathVariable("id") String id) {
+        //deleteById返回Mono<Void>，不能用它
+        return this.repository.findById(id)
+                //当要操作数据，并返回一个Mono，这个时候使用flatMap
+                //如果不操作数据，只是转换数据，使用map
+                .flatMap(user -> this.repository.delete(user).then(Mono.just(new ResponseEntity<Void>(HttpStatus.OK))))
+                .defaultIfEmpty(new ResponseEntity<>(HttpStatus.NOT_FOUND));
+    }
+
+    @PutMapping("/{id}")
+    public Mono<ResponseEntity<User>> updateUser(@PathVariable("id") String id, User user) {
+        Date start = new Date();
+        LOGGER.info("start time: {}", start);
+        Mono<ResponseEntity<User>> responseEntityMono = this.repository.findById(id)
+                //操作数据
+                .flatMap(u -> {
+                    u.setAge(user.getAge());
+                    u.setName(user.getName());
+                    try {
+                        Thread.sleep(3000);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                    return this.repository.save(u);
+                })
+                //转换数据
+                .map(u -> new ResponseEntity<>(u, HttpStatus.OK))
+                .defaultIfEmpty(new ResponseEntity<>(HttpStatus.NOT_FOUND));
+        Date end = new Date();
+        LOGGER.info("end time: {}", end);
+        LOGGER.info("花费时间: {} ms", (end.getTime() - start.getTime()));  //花费时间: 10 ms
+        return responseEntityMono;
+    }
+    
+    @GetMapping("/{id}")
+    public Mono<ResponseEntity<User>> findUserById(@PathVariable("id") String id) {
+        return this.repository.findById(id)
+                .map(user -> new ResponseEntity<>(user, HttpStatus.OK))
+                .defaultIfEmpty(new ResponseEntity<>(HttpStatus.NOT_FOUND));
+    }
+}
+```
+
+### 6. 配置
+
+```properties
+spring.data.mongodb.uri=mongodb://localhost:27017/webflux
+```
+
+## 5-10 RouterFunction模式
+
+handler:
+
+```java
+package com.imooc.handler;
+
+import com.imooc.domain.User;
+import com.imooc.repository.UserRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
+import org.springframework.stereotype.Component;
+import org.springframework.web.reactive.function.server.ServerRequest;
+import org.springframework.web.reactive.function.server.ServerResponse;
+import reactor.core.publisher.Mono;
+
+@Component
+public class UserHandler {
+
+    @Autowired
+    private UserRepository userRepository;
+
+    public Mono<ServerResponse> getAllUser(ServerRequest request) {
+        return ServerResponse.ok().contentType(MediaType.APPLICATION_JSON_UTF8)
+                .body(this.userRepository.findAll(), User.class);
+    }
+
+    /**
+     * 创建用户
+     * @param request
+     * @return
+     */
+    public Mono<ServerResponse> createUser(ServerRequest request) {
+        Mono<User> user = request.bodyToMono(User.class);
+        return ServerResponse.ok().contentType(MediaType.APPLICATION_JSON_UTF8)
+                .body(this.userRepository.saveAll(user), User.class);
+    }
+
+    /**
+     * 根据Id删除用户
+     * @param request
+     * @return
+     */
+    public Mono<ServerResponse> deleteUserById(ServerRequest request) {
+        String id = request.pathVariable("id");
+        return this.userRepository.findById(id)
+                .flatMap(user ->
+                    this.userRepository.delete(user).then(ServerResponse.ok().build()))
+                .switchIfEmpty(ServerResponse.notFound().build());
+    }
+}
+```
+
+router
+
+```java
+package com.imooc.router;
+
+import com.imooc.handler.UserHandler;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.reactive.function.server.RequestPredicates;
+import org.springframework.web.reactive.function.server.RouterFunction;
+import org.springframework.web.reactive.function.server.RouterFunctions;
+import org.springframework.web.reactive.function.server.ServerResponse;
+
+@Configuration
+public class AllRouters {
+
+    /**
+     * 把/router/user/和userHandler的getAllUser()绑定
+     * @param userHandler
+     * @return
+     */
+    @Bean
+    RouterFunction<ServerResponse> userRouter(UserHandler userHandler) {
+        return RouterFunctions.nest(
+                //相当于类上面的@RequestMapping("/router/user")
+                RequestPredicates.path("/router/user"),
+                //相当于类里面的@RequestMapping
+                RouterFunctions.route(RequestPredicates.GET("/"), userHandler::getAllUser));
+    }
+}
+```
+
+## 5-11 RouterFunction模式的参数校验
+
+```java
+public Mono<ServerResponse> createUser(ServerRequest request) {
+    Mono<User> user = request.bodyToMono(User.class);
+    /*return ServerResponse.ok().contentType(MediaType.APPLICATION_JSON_UTF8)
+                .body(this.userRepository.saveAll(user), User.class);*/
+    return user.flatMap(u -> {
+        //这里放校验代码 
+        //CheckUtil.checkName(u.getName());
+        return ServerResponse.ok().contentType(MediaType.APPLICATION_JSON_UTF8)
+            .body(this.userRepository.save(u), User.class);
+    });
+}
+```
 
