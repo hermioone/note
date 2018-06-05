@@ -395,7 +395,7 @@ public class CollectDemo {
 
         Stream.of(new Student("1", 1),
                 new Student("2", 2)).map(Student::getAge)
-                .collect(Collectors.toList());
+                .collect(Collectors.toList()); //这个之所以能引用是因为Stream中存储的就是Student对象，所以map中可以引用非静态方法
 
         //能用方法表达式就不要使用lambda表达式，因为lambda表达式会生成类似lambda$0这样的函数
         Set<Integer> ages = students.stream().map(Student::getAge)

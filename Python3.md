@@ -430,11 +430,439 @@ python -m seven.c15
 
 > 相对导入之所以能找到模块是因为从```__name__```来找，但是因为入口文件的```__name__ == __main__```，所以入口文件中不能使用相对导入
 
+# 第8章 Python函数
+
+## 8-1 认识函数
+
+查看python内置函数的作用：
+
+```shell
+# python进入解释器
+
+help(round)
+```
+
+## 8-2 函数的定义及运行特点
+
+1. 如果函数没有返回值，则默认返回None
+2. 函数的定义必须放在函数调用之前
+
+设置递归的最大层数：
+
+```python
+import sys
+sys.setrecursionlimit(2000)
+```
+
+## 8-3 如何让函数返回多个结果
+
+```python
+def damage(skill1, skill2):
+    damage1 = skill1 * 3
+    damage2 = skill1 * 2 + 10
+    return damage1, damage2
 
 
+damages = damage(3, 6)              # 不推荐这种方式  
+# print(damages[0], damages[6])     # 不推荐这种方式   
+print(type(damages))                # <class 'tuple'>
+
+# 序列解包
+skill1_damage, skill2_damage = damage(3, 6)    # 推荐这种方式
+```
+
+## 8-4 序列解包与链式赋值
+
+序列解包：把一个序列拆成了多个值 
+
+```python
+a, b, c = 1, 2, 3
+
+d = 1, 2, 3
+print(type(d))          # <class 'tuple'>
+
+a, b, c = d             # 序列解包：把一个tuple拆成了多个值
+
+a = b= c = 1
+```
+
+## 8-5 必须参数与关键字参数
+
+```python
+def add(x, y):      # x, y是必须参数
+    # x, y 是形参
+    return x + y
+
+a = add(1, 2)       # 1, 2是实参
+
+c = add(y = 3, x = 2)       # 这是关键字参数，调用函数时明确指定把实参赋给哪个形参
+# 关键字参数的意义在于代码的可读性
+```
+
+## 8-6 默认参数
+
+定义时默认参数必须放在所有非默认参数后面
+
+调用时非关键字参数也必须放在所有关键字参数之前
+
+## 8-7 可变参数
+
+```python
+def demo1(param1, param2 = 2, *param3):
+    print(param1)
+    # print(type(param))      # <class 'tuple'>
+    print(param2)
+    print(param3)
 
 
+def demo2(param1, *param3, param2 = 2):
+    print(param1)
+    # print(type(param))      # <class 'tuple'>
+    print(param2)
+    print(param3)
+
+demo1(1, 2, 3, 4, 5, 6)   
+a = (1, 2, 3, 4, 5, 6)
+demo1(a)     # 这样传的话会变成二维元组       
+demo1(*a)    # *a的作用就是序列解包
+demo1('a', 1, 2, 3)      # parma1 = 'a', param2 = 1, param3 = (2, 3)
+
+demo2('a', 1, 2, 3, 'param')    # parma1 = 'a', param3 = (1, 2, 3, 'param'), param2 = 2
+# 注：不建议函数参数设置地这么复杂
+```
+
+## 8-8 关键字可变参数
+
+```python
+def squsum(*param):
+    sum = 0
+    for i in param:
+        sum += i * i
+    print(sum)
+
+squsum(1, 2, 3, 4, 5, 6)
+
+# 设计一个函数，可以支持任意个数的关键字参数
+
+def city_temperature(**temps):
+    print(type(temps))      # <class 'dict'>
+    for key, value in temps.items():
+        print(key, ":", value)
+
+city_temperature(bj='32c', xm='23c', sh='31c')
+a = {'bj': '32c', 'xm': '23c', 'sh': '31c'}
+city_temperature(**a)
+```
+
+## 8-9 变量作用域
+
+```python
+c = 50              # 全局变量
+
+def add(x, y):
+    c = x + y       # 局部变量
+    print(c)
+
+add(1, 2)           # 3
+print(c)            # 50
+
+# 变量的作用域
+# 函数内的变量只会作用在函数内部
+# 在函数内部可以应用函数外部的变量
+# 在for循环外部可以引用for循环内部中的变量
+# python中没有块级作用域
+```
+
+## 8-11 global关键字
+
+```python
+def demo():
+    global c            # 在别的模块中也可以引用c
+    c = 2
+
+demo()      # 必须要先调用一下才能访问到c，因为前面只是函数的定义
+print(c)
+```
+
+# 第9章 高级部分：面向对象
+
+## 9-5 区别模块变量与类中的变量
+
+```python
+class Student():
+    name = '啊咧咧'         
+    age = 0
+
+    def __init__(self, name, age):     # 对于构造函数，如果要显式地写return的话，则只能return None
+        name = name
+        age = age
+        # return None
+
+    def do_homewrd(self):   
+        print(self.name + ' 做作业')
+    
+
+student1 = Student('石敢当', 18)        # 会自动调用构造函数（当然也可以显式调用构造函数student.__init()）
+# student2 = Student()
+# student3 = Student()
+# a = student1.__init__('石乐之', 18)
+# print(a)                    # None
+# print(type(a))              # <class 'NoneType'>
+student1.do_homewrd()         # 啊咧咧 做作业，原因见下一节：类变量和实例变量
+
+# 类变量 和 实例变量
+```
+
+## 9-6 类变量和实例变量
+
+```python
+# 类变量是和类相关联的
+# 实例变量和对象相关联的
+
+class Student():
+    # name = '啊咧咧'                      # 类变量
+    # age = 0                             # 类有名字和年龄不合适，名字和年龄应该是和对象相关的
+    sum = 0                     		 # 学生的总数
+
+    def __init__(self, name, age):     
+        self.name = name                # 实例变量，只和对象相关
+        self.age = age                  # 实例变量，只和对象相关
+
+    def do_homewrd(self):   
+        print(self.name + ' 做作业')
+
+student1 = Student('石敢当', 18)
+student2 = Student('喜小乐', 20)
+print(student1.name)            # 石敢当
+print(student2.name)            # 喜小乐
+print(Student.sum)            # 学生
+```
+
+## 9-7 类与对象的变量查找顺序
+
+**如果访问对象的变量，会先去实例变量中去找，如果没有则去类变量中去找，如果类中没有，则去Student的父类中去找**。
+
+```python
+class Student():
+    name = '啊咧咧'         
+    age = 0
+
+    def __init__(self, name, age):     # 对于构造函数，如果要显式地写return的话，则只能return None
+        name = name             # 这种赋值方式并不是赋值给实例变量
+        age = age
+        # return None
+
+    def do_homewrd(self):   
+        print('做作业')
+
+student1 = Student('石敢当', 18)
+print(student1.name)            # 啊咧咧，为什么？
 
 
+print(Student.name)             # 啊咧咧
 
+print(student1.__dict__)        # {}
+# __dict__这个字典中保存了所有相关的变量
+
+print(Student.__dict__)
+'''
+{
+    '__module__': '__main__', 
+    'name': '啊咧咧', 'age': 0, 
+    '__init__': <function Student.__init__ at 0x00000221572D37B8>, 
+    'do_homewrd': <function Student.do_homewrd at 0x00000221572D3D90>, 
+    '__dict__': <attribute '__dict__' of 'Student' objects>, 
+    '__weakref__': <attribute '__weakref__' of 'Student' objects>, 
+    '__doc__': None
+}
+'''
+```
+
+## 9-9 在实例方法中访问实例变量与类变量
+
+不管是访问类变量还是实例变量都需要加前缀：
+
+* 类里面：
+  * 实例变量：```self.name```
+  * 类变量：```Student.sum1```，```self.__class__.sum1```，```self.sum1```（不推荐）
+* 类外面：
+  * 实例变量：```student.name```
+  * 类变量：```Student.sum1```，```student.sum1```（不推荐）
+
+但是不推荐用对象去调用类变量
+
+```python
+class Student():
+    sum1 = 0    
+
+    def __init__(self, name, age):   
+        self.name = name             
+        self.age = age
+
+    def do_homework(self):
+        print('做作业')
+        print(self.name)               		 # 石敢当
+        print(self.__class__.sum1)            # 0
+
+
+student = Student('石敢当', 18)
+# print(student.__dict__)             # {'name': '石敢当', 'age': 18}
+student.do_homework()
+print(student.name)
+print(Student.sum1)
+```
+
+## 9-10 类方法
+
+实例方法中的```self```和类方法中的```cls```都可以换成别的名字，但不推荐这样做。
+
+也可以用对象调用类方法或类变量，但是不推荐这么做 
+
+```python
+class Student():
+    sum1 = 0    
+
+    def __init__(self, name, age):   
+        self.name = name             
+        self.age = age
+
+    def do_homework(self):      # 实例方法是为了操作实例变量
+        print('做作业')
+        print(self.sum1)
+
+    @classmethod                # 装饰器，说明该方法是类方法
+    def plus_sum(cls):          # 类方法的参数列表也有一个特定的名字：cls（约定俗成）
+        cls.sum1 += 1           # 每创建一个新的学生的时候，学生总数就+1
+        print(cls.sum1)
+
+
+student1 = Student('石敢当', 18)
+Student.plus_sum()
+student2 = Student('喜小乐', 19)
+Student.plus_sum()
+student3 = Student('郭大路', 20)
+Student.plus_sum()
+
+# 用对象调用类方法或类变量
+student1.plus_sum()
+print(student1.sum1)			# 4 
+
+student1.do_homework()			# 4
+```
+
+***总结***：对象可以访问实例变量和实例方法，也可以访问类对象和类方法（不推荐），但是类只能访问类对象和类方法。
+
+## 9-11 静态方法
+
+静态方法和类方法/实例方法的区别：
+
+1. 参数中没有必需的cls/self
+2. 函数上加上@staticmethod装饰器
+3. 静态方法和类方法都不能访问实例变量
+
+类和实例对象都可以调用静态方法。
+
+**能用静态方法的地方都可以用类方法代替**
+
+不建议经常使用静态方法
+
+```python
+class Student():
+    sum1 = 0    
+
+    def __init__(self, name, age):   
+        self.name = name             
+        self.age = age
+
+    def do_homework(self):  
+        print('做作业')
+
+    @classmethod                
+    def plus_sum(cls):          
+        cls.sum1 += 1           
+        print(cls.sum1)
+
+    @staticmethod           # 静态方法
+    def add(x, y):
+        print('static: ' + str(x + y))
+        print(Student.sum1)
+
+
+student1 = Student('石敢当', 18)
+Student.plus_sum()
+
+student1.add(1, 2)
+Student.add(3, 4)
+```
+
+## 9-13 没有什么是不能访问
+
+python没有任何机制可以阻止访问私有变量，之所以读不到私有变量是因为python把**私有变量的名字给换了换**。
+
+```python
+class Student():
+    sum1 = 0    
+
+    def __init__(self, name, age):   
+        self.name = name                # 公开的
+        self.age = age                  # 公开的
+        self.__score = 0                # 私有的，只在前面加__
+        self.__class__.sum1 += 1
+
+    def marking(self, score):
+        if score < 0:
+            return '不能打负分'
+        self.__score = score
+        print(self.name + ' 的成绩是：' + str(self.__score))
+
+    def do_homework(self):  
+        self.do_english_homework()
+        print('做作业')
+
+    def do_english_homework(self):
+        print('做英语作业')
+
+
+student = Student('石敢当', 18)
+# print(student.__score)            # 'Student' object has no attribute '__score'
+student.__score = -1                 # 这里设置的不是self.__score中的__score，而是python动态语言的特点，给student新添加了一个成员属性
+student.marking(100)
+print(student.__dict__)     # {'name': '石敢当', 'age': 18, '_Student__score': 100, '__score': -1}
+print(student._Student__score)          # 100, self.__score中的__score被转换成了_Student__score
+```
+
+## 9-14 继承
+
+python支持多继承
+
+```python
+# 继承
+
+class Human():
+    sum = 0
+    def __init__(self, name, age):
+        self.name = name
+        self.age = age
+
+    def do_homework(self):
+        print('do english homework')
+
+    def get_name(self):
+        return self.name
+
+class Student(Human):
+    def __init__(self, school, name, age):
+        self.school = school
+        # Human.__init__(self, name, age)           # 不建议这么做，用类调用实例方法
+        super(Student, self).__init__(name, age)    # 建议这种方式
+
+    def do_homework(self):
+        print('do homwork')
+        super(Student, self).do_homework()
+
+student = Student('人民路小学', '石敢当', 18)
+print(student.age)
+print(student.get_name())
+student.do_homework()
+```
 
