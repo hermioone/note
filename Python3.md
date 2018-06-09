@@ -866,3 +866,136 @@ print(student.get_name())
 student.do_homework()
 ```
 
+# 第十章 正则表达式JSON
+
+不管是python还是java中，如果要使用正则表达式匹配```\```，因为在正则表达式中```\\```表示一个```\```（```\```就不能用来匹配```\```了，因为一个```\```连同后面的字母会有别的含义，例如```\n```表示匹配回车，所以如果需要匹配```\n```这个字符串，则正则表达式中需要使用```\\n```），但是在python或java中的字符串也会进行转义，在字符串中同样是```\\```表示```\```，所以综合起来如果要匹配```\d```这个字符串，就需要使用```\\\\\d```。
+
+```python
+import re
+
+a = 'python1111java678javascript\\w'		# 这个字符串中\\表示一个\
+
+r = re.findall('\\d', a)     # re.findall('[0-9]', a), \\d就是概括字符集
+print(r)
+
+r = re.findall('\\w', a)     # re.findall('[0-9a-fA-Z_]', a)，还可以匹配下划线
+# 匹配时字符串中\\w ==> \w，在正则表达式中表示[0-9a-fA-Z_]
+print(r)
+r = re.findall('\\\\w', a)     
+print(r)            # ['\\w']，两个\\表示一个\
+```
+
+如上，如果使用```\```的方式的话，只推荐两种写法
+
+* ```\\d```：表示```[0-9]```
+* ```\\\\d```：表示```'\d'```这个字符串
+
+或者使用```r'\d'```的这种方式（python）中
+
+```python
+import re
+
+a = 'python1111java678javascript\\w'
+
+r = re.findall('\\d', a)     # re.findall('[0-9]', a), \\d就是概括字符集
+print(r)
+
+r = re.findall('\\w', a)     # re.findall('[0-9a-fA-Z_]', a)，还可以匹配下划线
+print(r)
+r = re.findall('\\\\w', a)     
+print(r)            # ['\\w']，两个\\表示一个\
+
+r = re.findall(r'\d', a)    # 和'\\d'一样
+print(r)
+```
+
+## 10-6 贪婪和非贪婪
+
+```python
+import re
+
+a = 'python 1111java678javascript'
+
+# r = re.findall('[a-z]', a)     
+# print(r)        # ['p', 'y', 't', 'h', 'o', 'n', 'j', 'a', 'v', 'a', 'j', 'a', 'v', 'a', 's', 'c', 'r', 'i', 'p', 't']
+
+r = re.findall('[a-z]{3,}', a)      # 注意：{3,}逗号后面不能有空格
+print(r)        # ['python', 'java', 'javascript']
+
+# 贪婪和非贪婪
+"""
+默认情况下python是贪婪的模式：如果把正则表达式的长度限定在一定的区间中，会倾向于尽可能多地取最大的一个长度值
+比如上面正则表达式的最小长度是3，但匹配到长度为3时，并不认为匹配成功，会继续往后寻找，一直到一个字符不满足这个匹配条件才会停止
+当匹配到pyt时，已经满足匹配条件，但是此时匹配不会停止，会一直向后寻找，直到找到空格时不满足匹配条件，此时停止。
+"""
+
+
+r = re.findall('[a-z]{3,6}?', a)      # 注非贪婪模式
+print(r)        # ['pyt', 'hon', 'jav', 'jav', 'asc', 'rip']
+```
+
+## 10-7 匹配0次1次或无限多次
+
+```python
+import re
+
+a = 'pytho01111python1pythonn2'
+
+r = re.findall('python*', a)        # *：对前面的一个字符匹配0次或者无限多次
+print(r)            # ['pytho', 'python', 'pythonn']
+r = re.findall('python+', a)        # +：对前面的一个字符匹配1次或者无限多次
+print(r)            # ['python', 'pythonn']
+r = re.findall('python?', a)        # +：对前面的一个字符匹配0次或者1次
+print(r)            # ['pytho', 'python', 'python']
+
+# ?可以用来进行去重
+```
+
+```?```的作用：
+
+* 如果前面是一个范围（例如```{3,6}```），这个```?```表示转化为非贪婪
+* 其他情况，```?```表示前面的一个字符重复0次或1次
+
+## 10-8 边界匹配符
+
+```python
+"""
+边界匹配
+"""
+
+import re
+
+qq = '100000112'
+# 匹配qq号：4-8
+r = re.findall('\\d{4,8}', qq)
+print(r)           # 如果qq的长度大于8，也会有匹配结果，所以这个匹配逻辑不对
+r = re.findall('^\\d{4,8}$', qq)        # ^：表示从字符串开始位置匹配；&：表示从字符串末尾位置开始匹配
+print(r)           # []   
+```
+
+## 10-9 组
+
+```python
+import re
+
+a = 'pythonpythonpythonpythonpython'
+# 想知道字符串中python是否重复了4遍
+r = re.findall('(python){4}', a)
+print(r)
+```
+
+## 10-10 匹配模式
+
+```re.findall()```还有第三个参数，表示匹配模式
+
+```python
+import re
+
+language = 'PythonC#\nJavaPHP'
+
+r = re.findall('c#.{1}', language, re.I)            # re.I:忽略大小写的一个模式
+print(r)        # [] , .表示匹配除了换行符之外的任意一个字符
+r = re.findall('c#.{1}', language, re.I | re.S)            # re.S：可以让.匹配任意一个字符，包括换行符
+print(r)        # ['C#\n']
+```
+
