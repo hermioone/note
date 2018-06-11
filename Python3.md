@@ -999,3 +999,215 @@ r = re.findall('c#.{1}', language, re.I | re.S)            # re.S：可以让.�
 print(r)        # ['C#\n']
 ```
 
+## 10-11 re.sub正则替换
+
+```python
+import re
+
+language = 'PythonC#JavaC#PHP'
+r = re.sub('C#', 'GO', language, 0)     # 0表示匹配将无限地替换下去（把所有的C#全替换掉）
+print(r)            # PythonGOJavaGOPHP
+r = re.sub('C#', 'GO', language, 1)     
+print(r)            # PythonGOJavaC#PHP
+r = language.replace('C#', 'GO')
+print(r)            # PythonGOJavaGOPHP
+
+def convert(value):
+    print(value)            # <_sre.SRE_Match object; span=(6, 8), match='C#'>
+    # span：匹配的字符串出现的位置：index：6，7
+    return '@' + value.group() + '@'
+
+r = re.sub('C#', convert, language, 1)  # 第二个参数可以传一个函数
+# 当正则表达式匹配到一个结果时，就会把它传到函数中，convert函数的返回结果将会替换'C#'
+print(r)        # Python@C#@JavaC#PHP
+```
+
+## 10-13 search与match函数
+
+* match从字符串首字母开始匹配，如果没有找着，则返回None 
+* search搜索整个字符串，直到找到第一个符合的，就返回 
+* match和search返回的结果比findall()返回的结果复杂 
+* match和search只要搜索到一个就会直接返回，findall会把所有的匹配结果返回 
+
+```python
+import re
+
+s = 'A8C432Dds3sd23'
+
+r = re.match('\\d', s)
+print(r)        # None，match从字符串首字母开始匹配，如果没有找着，则返回None
+r = re.search('\\d', s)
+print(r)        # <_sre.SRE_Match object; span=(1, 2), match='8'>
+# search搜索整个字符串，直到找到第一个符合的，就返回
+# match和search返回的结果比findall()返回的结果复杂
+# match和search只要搜索到一个就会直接返回，findall会把所有的匹配结果返回
+print(r.span())
+```
+
+## 10-14 group分组
+
+```python
+import re
+
+s = 'life is short, i use python'
+
+# 把life和python之间的匹配处理
+r = re.search('life.*python', s)
+print(r.group())        # life is short, i use python
+r = re.search('life(.*)python', s)   
+# group()的参数指定要得到的组号 
+# group(0)记录的永远是正则表达式匹配的完整的结果   
+print(r.group(0))       # life is short, i use python    
+# 如果想得到完整匹配结果内部的某个分组，则参数从1开始
+print(r.group(1))       #  is short, i use
+
+r = re.findall('life(.*)python', s)
+print(r)                # [' is short, i use ']
+
+s = 'life is short, i use python, i love python'
+r = re.search('life(.*)python(.*)python', s)
+print(r.group(1))       #  is short, i use
+print(r.group(2))       # , i love
+print(r.groups())       # (' is short, i use ', ', i love ')
+```
+
+## 10-16 理解JSON
+
+> JSON：JavaScript Object Notation
+
+本质：一种轻量级的数据交换格式。
+
+JSON是一种***数据格式***。
+
+字符串是JSON的表现形式。
+
+符合JSON格式的字符串叫***JSON字符串***。
+
+json字符串的规范：
+
+* json字符串中的**每个key都需要加引号** 
+* json字符串**必须用双引号**，不能用单引号 
+* json字符串中布尔值不需要加双引号（true/false）
+
+注：JSON字符串和JavaScript中的对象的形式一样。
+
+```python
+json_str1 = '[{"name":"leihou", "age":18, "male":true}, {"name":"alielie", "age":20}]'
+```
+
+反序列化：
+
+```python
+import json
+json_str = '{"name":"leihou", "age":18}'
+student = json.loads(json_str)
+```
+
+序列化：
+
+```python
+import json
+student = {'name':'leihou', 'age':18}
+json_str = json.dumps(student)
+```
+
+## 10-19 小谈JSON，JSON对象与JSON字符串
+
+JSON也可以理解为ECMAScript的一个实现。
+
+* **JSON**：数据交换的一种数据格式
+* **JSON字符串**：符合JSON格式的字符串
+* **JSON对象**：只在JavaScript中成立
+
+# 第11章 Python的高级语法与用法
+
+## 11-1 枚举其实是一个类
+
+```python
+# python3中新增了枚举
+
+from enum import Enum
+class VIP(Enum):
+    YELLOW = 1
+    GREEN = 2
+    BLACK = 3
+    RED = 4
+
+print(VIP.BLACK)            # VIP.BLACK：这才是枚举的意义所在，如果是普通类的话，就是打印 3
+print(VIP.BLACK.value)      # 3
+print(VIP.BLACK.name)       # BLACK
+print(VIP['BLACK'])         # VIP.BLACK，通过枚举名称可以获得枚举类型
+
+# VIP.BLACK：枚举类型
+# VIP.BLACK.value：枚举的值
+# VIP.BLACK.name：枚举的名称
+
+for v in VIP:
+    print(v)                # 枚举可以遍历
+```
+
+## 11-4 枚举的比较运算
+
+```python
+from enum import Enum
+class VIP(Enum):
+    YELLOW = 1
+    GREEN = 2
+    BLACK = 3
+    RED = 4
+
+print(VIP.GREEN == 2)               # False
+print(VIP.BLACK == VIP.GREEN)       # False
+# print(VIP.GREEN > VIP.BLACK)      # 枚举不能进行大小比较
+print(VIP.GREEN == VIP.GREEN)       # True
+print(VIP.BLACK is VIP.BLACK)       # True
+```
+
+## 11-5 枚举注意事项
+
+### 1. 枚举的名称不能相同 
+
+```python
+class VIP(Enum):
+    YELLOW = 1
+    YELLOW = 2		# 会报错
+    BLACK = 3
+    RED = 4
+```
+
+### 2. 枚举的值如果相等的话
+
+```python
+from enum import Enum
+class VIP(Enum):
+    YELLOW = 1
+    YELLOW_ALIAS = 1
+    BLACK = 3
+    RED = 4
+
+for v in VIP:
+    print(v)    # VIP.YELLOW, VIP.BLACK, VIP.RED
+
+print(VIP.YELLOW_ALIAS)     # VIP.YELLOW，# VIP.YELLOW，YELLOW_ALIAS就相当于YELLOW的别名
+
+for v in VIP.__members__.items():
+    print(v)
+'''
+('YELLOW', <VIP.YELLOW: 1>)
+('YELLOW_ALIAS', <VIP.YELLOW: 1>)
+('BLACK', <VIP.BLACK: 3>)
+('RED', <VIP.RED: 4>)
+'''
+
+for v in VIP.__members__:
+    print(v)
+'''
+YELLOW
+YELLOW_ALIAS
+BLACK
+RED
+'''
+```
+
+
+
