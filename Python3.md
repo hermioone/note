@@ -1209,5 +1209,133 @@ RED
 '''
 ```
 
+## 11-6 枚举转换
 
+```python
+from enum import Enum
+
+class VIP(Enum):
+    YELLOW = 1
+    GREEN = 2
+    BLACK = 3
+    RED = 4
+
+a = 1
+print(VIP(a))
+```
+
+## 11-9 一切皆对象
+
+python中一切皆对象，函数也是对象
+
+## 11-10 什么是闭包
+
+闭包：函数以及函数在**定义时候**的外部环境变量（同时还不能是全局的环境变量）所构成的一个整体 
+
+```python
+def curve_pre():
+    a = 25
+    def curve(x):
+        return a * x * x
+    return curve
+
+a = 10
+f = curve_pre()
+print(f(2))         # 100，
+print(f.__closure__[0].cell_contents)           # 25
+```
+
+```python
+def curve_pre():
+    # a = 25
+    def curve(x):
+        return a * x * x
+    return curve
+
+a = 10
+f = curve_pre()
+print(f(2))         # 40，这里没有形成闭包，因为a没有在函数定义的环境变量中
+```
+
+闭包的意义在于：它保存的是一个环境。
+
+```python
+def f1():
+    a = 10
+    def f2():
+        a = 20          # a此时将被python认为是一个局部变量
+        print(a)         
+    print(a)            # 10
+    f2()                # 20
+    print(a)            # 10
+
+f1()
+# 不是闭包
+```
+
+## 11-14 非闭包解决
+
+```python
+origin = 0
+
+def go(step):
+    new_pos = origin + step    
+    origin = new_pos
+    return new_pos
+
+print(go(2))
+print(go(3))
+print(go(4))
+
+# 这段代码是错的，因为在go()定义时，line5 origin出现在等号坐标，所以翻译器就会认为origin是局部变量，当line8执行go(2)时，
+# 因为line4 用到了origin，但是origin还没有赋值，所以就会报错。
+
+# 解决方案：在new_pos = origin + step之前 加上global origin
+```
+
+## 11-15 用闭包解决
+
+```python
+origin = 0
+
+def factory(pos):
+    def go(step):
+        nonlocal pos
+        new_pos = pos + step
+        pos = new_pos
+        return new_pos
+    return go
+
+tourist = factory(origin)
+print(tourist(2))           # 2
+print(tourist(3))           # 5
+print(tourist(4))           # 9
+
+# 因为闭包可以保存环境变量，所以就可以记忆住上次调用的状态(pos的值)
+
+
+
+# 或者
+def factory():
+    pos = 0
+    def go(step):
+        nonlocal pos
+        new_pos = pos + step
+        pos = new_pos
+        return new_pos
+    return go
+
+tourist = factory()
+print(tourist(2))           # 2
+print(tourist(3))           # 5
+print(tourist(4))           # 9
+```
+
+## 11-16 小谈函数式编程
+
+闭包的两个用处：
+
+1. 从模块级别调用某个局部变量
+2. 保存环境变量，记忆上次调用的状态
+   * 缺点：环境变量长驻内存，容易造成内存泄漏
 
