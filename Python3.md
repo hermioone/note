@@ -978,10 +978,26 @@ print(r)           # []
 ```python
 import re
 
-a = 'pythonpythonpythonpythonpython'
-# 想知道字符串中python是否重复了4遍
-r = re.findall('(python){4}', a)
-print(r)
+s = 'life is short, i use python'
+
+# 把life和python之间的匹配处理
+r = re.search('life.*python', s)
+print(r.group())        # life is short, i use python
+r = re.search('life(.*)python', s)   
+# group()的参数指定要得到的组号 
+# group(0)记录的永远是正则表达式匹配的完整的结果   
+print(r.group(0))       # life is short, i use python    
+# 如果想得到完整匹配结果内部的某个分组，则参数从1开始
+print(r.group(1))       #  is short, i use
+
+r = re.findall('life(.*)python', s)
+print(r)                # [' is short, i use ']
+
+s = 'life is short, i use python, i love python'
+r = re.search('life(.*)python(.*)python', s)
+print(r.group(1))       #  is short, i use
+print(r.group(2))       # , i love
+print(r.groups())       # (' is short, i use ', ', i love ')
 ```
 
 ## 10-10 匹配模式
@@ -1338,4 +1354,437 @@ print(tourist(4))           # 9
 1. 从模块级别调用某个局部变量
 2. 保存环境变量，记忆上次调用的状态
    * 缺点：环境变量长驻内存，容易造成内存泄漏
+
+# 第12章 函数式编程
+
+## 12-1 lambda表达式
+
+```python
+f2 = lambda x, y: a = x + y     # 会报错，因为：后面只能是表达式，不能是代码块
+f2(1, 2)
+
+f = lambda x, y: x + y
+print(add(1, 2))
+```
+
+## 12-2 三元表达式
+
+```python
+f = lambda x, y: x if x > y else y
+```
+
+## 12-3 map
+
+```python
+list_x = [1, 2, 3, 4, 5, 6, 7, 8]
+r = map(lambda x: x**2, list_x)     # class map(func, *iterables)
+print(r)        # <map object at 0x0000028797C68E10>，map和list一样都是class
+print(list(r))  # [1, 4, 9, 16, 25, 36, 49, 64]
+```
+
+```python
+list_x = [1, 2, 3, 4, 5, 6, 7, 8]
+list_y = [8, 7, 6, 5, 4, 3]
+r = map(lambda x, y: x*y, list_x, list_y)     # 后面列表的传入个数必须和lambda表达式的参数个数一致
+print(list(r))  # [8, 14, 18, 20, 20, 18]
+# 通过map计算得到的结果列表元素个数取决于长度较小的列表的长度
+```
+
+## 12-5 reduce
+
+```python
+from functools import reduce		# 需要导入模块
+
+list_x = ['1', '2', '3', '4', '5', '6', '7', '8']
+# reduce在做连续计算
+r = reduce(lambda x, y: x + y, list_x, '0')          # reduce中的函数参数必须有两个参数
+print(r)            # 012345678
+```
+
+## 12-6 filter
+
+```python
+list_x = [1, 0, 0, 1, 2, 0, 3, 2, 0]
+r = filter(lambda x: x, list_x)
+print(r)                # <filter object at 0x0000020AFC3C8E10>
+print(list(r))          # [1, 1, 2, 3, 2]
+```
+
+## 12-8 装饰器
+
+不用装饰器
+
+```python
+import time
+
+def print_current_time(func):
+    print(time.time())
+    func()
+
+def f1():
+    print('this is a f1')
+
+def f2():
+    print('this is a f2')
+
+print_current_time(f1)
+print_current_time(f2)
+```
+
+使用装饰器
+
+```python
+import time
+
+def decorator(func):            # 装饰器
+    def wrapper():              # 把c8.py中的print_current_time又封装了一层
+        print(time.time())
+        func()
+    return wrapper
+
+def f1():
+    print('this is a f1')
+
+f = decorator(f1)
+f()
+```
+
+完整版
+
+```python
+import time
+
+def decorator(func):            
+    def wrapper():              
+        print(time.time())
+        func()
+    return wrapper
+
+@decorator          # @ + 装饰器的名字
+def f1():
+    print('this is a f1')
+
+f1()        # 装饰器的最大意义：保证原来的调用方式不变
+```
+
+能接受定义时候的复杂，但是不能接受调用时候的复杂
+
+```python
+# 带参数的装饰器
+import time
+
+def decorator(func):            
+    def wrapper(*args):              
+        print(time.time())
+        print(args)         # ('1', '2')，args是个列表
+        print(*args)        # 1 2，*args是把列表解包
+        func(*args)
+    return wrapper
+
+@decorator          # @ + 装饰器的名字
+def f1(func_name):
+    print('this is a ', func_name)
+
+@decorator
+def f2(func_name1, func_name2):
+    print(func_name1, func_name2)
+
+@decorator
+def f3(func_name1, func_name2, func_name3):
+    pass
+
+# f1('f1')  
+f2('1', '2')  
+```
+
+```python
+import time
+
+def decorator(func):            
+    def wrapper(*args, **kw):              
+        print(time.time())   
+        func(*args, **kw)
+    return wrapper
+
+@decorator         
+def f1(func_name):
+    print('this is a ', func_name)
+
+@decorator
+def f2(func_name1, func_name2):
+    print(func_name1, func_name2)
+
+@decorator
+def f3(func_name1, func_name2, **kw):
+    print("--" + func_name1 + "--" + func_name2)
+    print(kw)
+
+f1('f1')  
+f2('1', '2')    
+f3('f1', 'f2', a=1, b=2)
+```
+
+# 第14章 Pythonic
+
+## 14-3 列表推导式
+
+```python
+a = [1, 2, 3, 4, 5, 6, 7, 8]
+
+b = [i ** 2 for i in a]
+print(b)    # [1, 4, 9, 16, 25, 36, 49, 64]
+c = [i**2 for i in a if i >= 5]
+print(c)    # 条件筛选，[25, 36, 49, 64]
+c = {i**2 for i in a if i >= 5}
+print(c)    # {64, 25, 36, 49}
+
+# set也可以被推导
+# 元组也可以
+
+a = {1, 2, 3, 4, 5, 6, 7, 8}
+c = [i**2 for i in a if i >= 5]
+print(c)    # [25, 36, 49, 64]
+c = {i**2 for i in a if i >= 5}
+print(c)    # {64, 25, 36, 49}
+
+# dict也可以被推导
+students = {
+    '喜小乐': 18,
+    '石敢当': 20,
+    '横小五': 15
+}
+
+b = [key for key, value in students.items()]
+print(b)            # ['喜小乐', '石敢当', '横小五']
+c = {value:key for key, value in students.items()}
+print(c)            # {18: '喜小乐', 20: '石敢当', 15: '横小五'} 
+
+d = (key for key, value in students.items()) 
+print(d)            # <generator object <genexpr> at 0x000001FF11CF61A8>
+for x in d:
+    print(x)        
+    '''
+    喜小乐
+    石敢当
+    横小五
+    '''
+```
+
+## 14-5 迭代器和可迭代对象
+
+### 迭代器和可迭代对象
+
+* 可迭代对象：凡是可以被for in循环遍历的对象都是可迭代对象
+* 迭代器：1.迭代器是一个对象；2.迭代器一定是可迭代的
+* **可迭代对象不一定是迭代器**
+
+```python
+# 只要实现了__iter__和__next__就是迭代器
+class BookCollection:
+    def __init__(self):
+        self.data = ['Harry Potter', 'Konan', '犬夜叉']
+        self.cur = 0
+
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self.cur >= len(self.data):
+            raise StopIteration()
+        r = self.data[self.cur]
+        self.cur += 1
+        return r
+    
+
+books = BookCollection()
+# 对于迭代器，可以使用next()，但是不能next(list)，所以list不是迭代器，只是可迭代对象
+print(next(books))      # Harry Potter
+print(next(books))      # Konan
+print(next(books))      # 犬夜叉
+
+# 迭代器是一次性的，所以只能迭代一次，如果想第二次迭代，只能重新复制
+books = BookCollection()
+for book in books:
+    print(book)
+
+    
+import copy
+
+books1 = copy.copy(books)           # 浅拷贝
+books1 = copy.deepcopy(books)       # 深拷贝
+```
+
+### 生成器
+
+```python
+def gen(max):                   # 生成器
+    n = 0
+    while n <= max:
+        n += 1
+        yield n
+
+g = gen(10000)
+for i in g:
+    print(i)
+
+# 也可以使用next()
+# print(next(g))
+# print(next(g))
+# print(next(g))
+
+n = (i for i in range(0, 10000))        # 生成器
+```
+
+## 14-6 None
+
+None也是对象
+
+```python
+print(type(None))		# <class 'NoneType'>
+```
+
+## 14-7 对象存在并不一定是True
+
+* 如果类下面没有定义```__bool__```和```__len__```方法的话，那么bool结果就是True
+* 如果类下面没有```__bool__```方法但是有```__len__```方法，如果```__len__```返回0，则bool结果为False，否则为True
+* 如果类下面有```__bool__```方法，则bool结果取决于```__bool__```方法的返回结果
+
+**注**：
+
+* ```len()```方法也是调用```__len__```方法
+
+```python
+class Test():
+    pass
+
+test = Test()
+
+print(bool(test))           # True
+
+class Test1():
+    def __len__(self):
+        return 0
+
+test1 = Test1()
+print(bool(test1))          # False
+
+class Test2():
+    def __bool__(self):
+        return True
+    def __len__(self):
+        return 0
+
+test2 = Test2()
+print(bool(test2))          # True
+
+class Test3():
+    def __bool__(self):
+        return False        # 只能返回bool类型
+    def __len__(self):
+        return 8            # 只能返回int
+
+test3 = Test3()
+print(bool(test3))          # False
+print(len(test3))           # 8，如果Test3中没有__len__()函数，则len(test3)会报错
+```
+
+## 14-9 装饰器的副作用
+
+使用装饰器后，会导致函数的一些信息丢失，如注解、函数名等等
+
+```python
+import time
+
+def decorator(func):
+    def wrapper():
+        print(time.time())
+        func()
+    return wrapper
+
+
+def f1():
+    '''
+        This is f1
+    '''
+    print(f1.__name__)          # f1()
+print(help(f1))      
+'''
+Help on function f1 in module __main__:
+
+f1()
+    This is f1
+
+None
+'''   
+f1()
+
+
+
+@decorator
+def f2():
+    '''
+        This is f2
+    '''
+    print(f2.__name__)          # wrapper
+print(help(f2))
+'''
+Help on function wrapper in module __main__:
+
+wrapper()
+
+None
+'''
+f2()
+```
+
+解决方法：```@wraps(func) ```
+
+```python
+import time
+from functools import wraps
+
+def decorator(func):
+    @wraps(func)            # 把func这个函数的一些信息复制到wrapper这个闭包函数上
+    def wrapper():
+        print(time.time())
+        func()
+    return wrapper
+
+
+def f1():
+    '''
+        This is f1
+    '''
+    print(f1.__name__)          # f1()
+print(help(f1))      
+'''
+Help on function f1 in module __main__:
+
+f1()
+    This is f1
+
+None
+'''   
+f1()
+
+
+
+@decorator
+def f2():
+    '''
+        This is f2
+    '''
+    print(f2.__name__)          # f2
+print(help(f2))
+'''
+Help on function f2 in module __main__:
+
+f2()
+    This is f2
+
+None
+'''
+f2()
+```
 
