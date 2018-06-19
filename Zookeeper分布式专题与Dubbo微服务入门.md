@@ -593,6 +593,550 @@ serverId=0
 * 节点的增删改查
 * watch与acl的相关操作
 
+### 6-1 建立客户端与zk服务端的连接
+
+#### 1. pom中添加依赖
+
+```xml
+<dependency>
+    <groupId>org.apache.zookeeper</groupId>
+    <artifactId>zookeeper</artifactId>
+    <version>3.4.11</version>
+</dependency>
+```
+
+#### 2. 编写java客户端
+
+```java
+public class ZKConnect implements Watcher {
+
+    private final static Logger log = LoggerFactory.getLogger(ZKConnect.class);
+
+    private static final String zkServerPath = "locahost:2181,locahost:2182,locahost:2183";
+    private static final Integer timeout = 5000;
+
+    public static void main(String[] args) throws Exception {
+        /*
+         * 客户端和zk服务端链接是一个异步的过程
+         * 当连接成功后后，客户端会收的一个watch通知
+         *
+         *ZooKeeper(String connectString,
+         *          int sessionTimeout,
+         *          Watcher watcher,
+         *          long sessionId,
+         *          byte[] sessionPasswd,
+         *          boolean canBeReadOnly)
+         *
+         * 参数：
+         * connectString：连接服务器的ip字符串，
+         * 		比如: "192.168.1.1:2181,192.168.1.2:2181,192.168.1.3:2181"
+         * 		可以是一个ip，也可以是多个ip，一个ip代表单机，多个ip代表集群
+         * 		也可以在ip后加路径
+         * sessionTimeout：超时时间，心跳收不到了，那就超时
+         * watcher：如果收到watch通知，就会触发Watcher的process()方法；如果不需要，那就设置为null
+         * canBeReadOnly：可读，当这个物理机节点断开后，还是可以读到数据的，只是不能写，
+         * 					       此时数据被读取到的可能是旧数据，此处建议设置为false，不推荐使用
+         * sessionId：会话的id
+         * sessionPasswd：会话密码	当会话丢失后，可以依据 sessionId 和 sessionPasswd 重新获取会话
+         */
+        ZooKeeper zk = new ZooKeeper(zkServerPath, timeout, new ZKConnect());
+
+        log.warn("客户端开始连接zookeeper服务器...");
+        log.warn("连接状态：{}", zk.getState());
+
+        Thread.sleep(2000);
+
+        log.warn("连接状态：{}", zk.getState());
+    }
+
+    @Override
+    public void process(WatchedEvent event) {
+        log.warn("接受到watch通知：{}", event);
+    }
+}
+/*
+ * 2018-06-19 09:58:29,439 [main] [com.imooc.zk.demo.ZKConnect.main(ZKConnect.java:44)] - [WARN] 客户端开始连接zookeeper服务器...
+ * 2018-06-19 09:58:29,442 [main] [com.imooc.zk.demo.ZKConnect.main(ZKConnect.java:45)] - [WARN] 连接状态：CONNECTING
+ * 2018-06-19 09:58:29,454 [main-EventThread] [com.imooc.zk.demo.ZKConnect.process(ZKConnect.java:54)] - [WARN] 接受到watch通知：WatchedEvent state:SyncConnected type:None path:null
+ * 2018-06-19 09:58:31,443 [main] [com.imooc.zk.demo.ZKConnect.main(ZKConnect.java:49)] - [WARN] 连接状态：CONNECTED
+ */
+```
+
+### 6-2 zk会话重连机制
+
+```java
+public class ZKConnectSessionWatcher implements Watcher {
+
+    private final static Logger log = LoggerFactory.getLogger(ZKConnectSessionWatcher.class);
+
+    private static final String zkServerPath = "locahost:2181,locahost:2182,locahost:2183";
+    private static final Integer timeout = 5000;
+
+    public static void main(String[] args) throws Exception {
+
+        ZooKeeper zk = new ZooKeeper(zkServerPath, timeout, new ZKConnectSessionWatcher());
+
+        log.warn("客户端开始连接zookeeper服务器...");
+        log.warn("连接状态：{}", zk.getState());
+        Thread.sleep(1000);
+        long sessionId = zk.getSessionId();
+        String ssid = "0x" + Long.toHexString(sessionId);
+        byte[] sessionPassword = zk.getSessionPasswd();
+        log.warn("session Id为：{}, session Password为：{}", ssid, sessionPassword);
+        log.warn("连接状态：{}", zk.getState());
+
+        Thread.sleep(200);
+
+        // 开始会话重连
+        log.warn("开始会话重连...");
+
+        ZooKeeper zkSession = new ZooKeeper(zkServerPath,
+                timeout,
+                new ZKConnectSessionWatcher(),
+                sessionId,
+                sessionPassword);
+        log.warn("重新连接状态zkSession：{}", zkSession.getState());
+        Thread.sleep(1000);
+        log.warn("重新连接状态zkSession：{}", zkSession.getState());
+    }
+
+    @Override
+    public void process(WatchedEvent event) {
+        log.warn("接受到watch通知：{}", event);
+    }
+}
+/*
+ * 2018-06-19 10:01:28,562 [main] [com.imooc.zk.demo.ZKConnectSessionWatcher.main(ZKConnectSessionWatcher.java:25)] - [WARN] 客户端开始连接zookeeper服务器...
+ * 2018-06-19 10:01:28,565 [main] [com.imooc.zk.demo.ZKConnectSessionWatcher.main(ZKConnectSessionWatcher.java:26)] - [WARN] 连接状态：CONNECTING
+ * 2018-06-19 10:01:28,577 [main-EventThread] [com.imooc.zk.demo.ZKConnectSessionWatcher.process(ZKConnectSessionWatcher.java:51)] - [WARN] 接受到watch通知：WatchedEvent state:SyncConnected type:None path:null
+ * 2018-06-19 10:01:29,565 [main] [com.imooc.zk.demo.ZKConnectSessionWatcher.main(ZKConnectSessionWatcher.java:31)] - [WARN] session Id为：0x300000469360005, session Password为：[-89, -25, -48, -39, 85, -108, 80, -119, 48, -31, 91, -57, 40, -18, -31, 41]
+ * 2018-06-19 10:01:29,565 [main] [com.imooc.zk.demo.ZKConnectSessionWatcher.main(ZKConnectSessionWatcher.java:32)] - [WARN] 连接状态：CONNECTED
+ * 2018-06-19 10:01:30,566 [main] [com.imooc.zk.demo.ZKConnectSessionWatcher.main(ZKConnectSessionWatcher.java:37)] - [WARN] 开始会话重连...，此时zk状态为：CONNECTED
+ * 2018-06-19 10:01:30,567 [main] [com.imooc.zk.demo.ZKConnectSessionWatcher.main(ZKConnectSessionWatcher.java:44)] - [WARN] 重新连接状态zkSession：CONNECTING
+ * 2018-06-19 10:01:30,570 [main-EventThread] [com.imooc.zk.demo.ZKConnectSessionWatcher.process(ZKConnectSessionWatcher.java:51)] - [WARN] 接受到watch通知：WatchedEvent state:SyncConnected type:None path:null
+ * 2018-06-19 10:01:31,569 [main] [com.imooc.zk.demo.ZKConnectSessionWatcher.main(ZKConnectSessionWatcher.java:46)] - [WARN] 重新连接状态zkSession：CONNECTED
+ */
+```
+
+### 6-3 同步异步创建zk节点
+
+#### 1. 同步
+
+```java
+/*
+ * 同步或者异步创建节点，都不支持子节点的递归创建，异步有一个callback函数
+ * 参数：
+ * path：创建的路径
+ * data：存储的数据的byte[]
+ * acl：控制权限策略
+ * 			Ids.OPEN_ACL_UNSAFE --> world:anyone:cdrwa
+ * 			CREATOR_ALL_ACL --> auth:user:password:cdrwa
+ * createMode：节点类型, 是一个枚举
+ * 			PERSISTENT：持久节点
+ * 			PERSISTENT_SEQUENTIAL：持久顺序节点
+ * 			EPHEMERAL：临时节点
+ * 			EPHEMERAL_SEQUENTIAL：临时顺序节点
+ */
+String result = zookeeper.create(path, data, acls, CreateMode.EPHEMERAL);
+System.out.println("创建节点： " + result + " 成功...");
+```
+
+#### 2. 异步
+
+```java
+String ctx = "{'create':'success'}";            //可以是任意形式（Object），灵活
+zookeeper.create(path, data, acls, CreateMode.PERSISTENT, (rc, pa, ct, name) -> {
+    System.out.println("创建节点："  + pa);
+    System.out.println((String)ct);
+}, ctx);
+//lambda表达式是一个回调函数，
+```
+
+### 6-4 修改zk节点数据
+
+和创建zk节点时一样，修改zk节点数据也有同步和异步两种方式。这里只举同步的例子，异步和创建节点时相似，也是传入回调函数和ctx。
+
+```java
+/**
+ * 参数：
+ * path：节点路径
+ * data：数据
+ * version：数据版本号，需要和当前的数据版本号相同
+ */
+Stat status  = zookeeper().setData("/testnode", "xyz".getBytes(), 0);
+System.out.println(status.getVersion());
+```
+
+### 6-5 删除zk节点
+
+#### 1. 同步
+
+```java
+zookeeper().delete("/testnode", 1);
+```
+
+#### 2. 异步
+
+```java
+zookeeper().delete("/test-delete-node", 0, (rc, path, ctx) -> {
+		System.out.println("删除节点" + path);
+		System.out.println((String)ctx);
+	}, ctx);
+```
+
+### 6-6 CountDownLatch的介绍
+
+* 是一个计数器
+* 多用于线程，可以暂停也可以继续
+
+### 6-8 获取节点数据
+
+```java
+/**
+ * 参数：
+ * path：节点路径
+ * watch：true或者false，注册一个watch事件
+ * stat：状态
+ */
+byte[] resByte = zookeeper().getData("/data", true, stat);
+String result = new String(resByte);
+System.out.println("当前值:" + result);
+System.out.println("当前状态：" + stat);
+
+/*
+ * 当前值:alielie
+ * 当前状态：8589934594,17179869235,1529052975251,1529378867665,1,0,0,0,7,0,8589934594
+ * 
+ */
+```
+
+### 6-9 获取zk子节点列表
+
+```java
+/**
+ * 参数：
+ * path：父节点路径
+ * watch：true或者false，注册一个watch事件
+ */
+ //同步调用
+List<String> strChildList = zookeeper().getChildren("/data", true);
+for (String s : strChildList) {
+    System.out.println(s);
+}
+
+//异步调用
+String ctx = "{'callback':'ChildrenCallback'}";
+zookeeper().getChildren("/imooc", true, new ChildrenCallBack(), ctx);
+zookeeper().getChildren("/imooc", true, new Children2CallBack(), ctx);
+```
+
+### 6-10 判断zk节点是否存在
+
+```java
+/**
+ * 参数：
+ * path：节点路径
+ * watch：watch
+ */
+Stat stat = zookeeper().exists("/imooc-fake", true);
+if (stat != null) {
+    System.out.println("查询的节点版本为dataVersion：" + stat.getVersion());
+} else {
+    System.out.println("该节点不存在...");
+}
+```
+
+**也有异步的调用方式**。
+
+### 6-12 acl-自定义用户权限
+
+```java
+List<ACL> acls = new ArrayList<ACL>();
+Id imooc1 = new Id("digest", AclUtils.getDigestUserPwd("imooc1:123456"));       //id:password
+Id imooc2 = new Id("digest", AclUtils.getDigestUserPwd("imooc2:123456"));
+acls.add(new ACL(Perms.ALL, imooc1));
+acls.add(new ACL(Perms.READ, imooc2));
+acls.add(new ACL(Perms.DELETE | Perms.CREATE, imooc2));
+zkServer.createZKNode("/aclimooc/testdigest", "testdigest".getBytes(), acls);
+```
+
+运行后，在命令行中运行一下命令：
+
+```getAcl /aclimooc/testdigest```：
+
+```shell
+'digest,'imooc1:ee8R/pr2P4sGnQYNGyw2M5S5IMU=
+: cdrwa
+'digest,'imooc2:eBdFG0gQw0YArfEFDCRP3LzIp6k=
+: r
+'digest,'imooc2:eBdFG0gQw0YArfEFDCRP3LzIp6k=
+: cd
+```
+
+此时通过java API操作```/aclimooc/testdigest```节点：
+
+```java
+zkServer.getZookeeper().addAuthInfo("digest", "imooc1:123456".getBytes());
+zkServer.createZKNode("/aclimooc/testdigest/childtest", 
+                      "childtest".getBytes(), 		 
+                      Ids.CREATOR_ALL_ACL);
+```
+
+## 第7章 Apache Curator客户端的使用
+
+常用的zk java客户端：
+
+* zk原生api
+* zkclient
+* Apache curator
+
+zk原生api的不足之处：
+
+* 超时重连，不支持自动，需要手动操作
+* Watch注册一次后会失效
+* 不支持递归创建节点
+
+### 1. 添加依赖
+
+```xml
+<dependency>
+    <groupId>org.apache.curator</groupId>
+    <artifactId>curator-framework</artifactId>
+    <version>4.0.0</version>
+</dependency>
+
+<dependency>
+    <groupId>org.apache.curator</groupId>
+    <artifactId>curator-recipes</artifactId>
+    <version>4.0.0</version>
+</dependency>
+
+<dependency>
+    <groupId>org.apache.zookeeper</groupId>
+    <artifactId>zookeeper</artifactId>
+    <version>3.4.11</version>
+</dependency>
+```
+
+### 2. 代码
+
+```java
+public class CuratorOperator {
+
+    private CuratorFramework client = null;
+    private static final String zkServerPath = "192.168.1.103:2181,192.168.1.103:2182,192.168.1.103:2183";
+
+    /**
+     * 实例化zk客户端
+     */
+    public CuratorOperator() {
+        /**
+         * 同步创建zk示例，原生api是异步的
+         *
+         * curator链接zookeeper的策略:ExponentialBackoffRetry
+         * baseSleepTimeMs：初始sleep的时间
+         * maxRetries：最大重试次数
+         * maxSleepMs：最大重试时间
+         */
+//		RetryPolicy retryPolicy = new ExponentialBackoffRetry(1000, 5);
+
+        /**
+         * curator链接zookeeper的策略:RetryNTimes
+         * n：重试的次数
+         * sleepMsBetweenRetries：每次重试间隔的时间
+         */
+        RetryPolicy retryPolicy = new RetryNTimes(3, 5000);
+
+        /**
+         * curator链接zookeeper的策略:RetryOneTime
+         * sleepMsBetweenRetry:每次重试间隔的时间
+         */
+//		RetryPolicy retryPolicy2 = new RetryOneTime(3000);
+
+        /**
+         * 永远重试，不推荐使用
+         */
+//		RetryPolicy retryPolicy3 = new RetryForever(retryIntervalMs)
+
+        /**
+         * curator链接zookeeper的策略:RetryUntilElapsed
+         * maxElapsedTimeMs:最大重试时间
+         * sleepMsBetweenRetries:每次重试间隔
+         * 重试时间超过maxElapsedTimeMs后，就不再重试
+         */
+//		RetryPolicy retryPolicy4 = new RetryUntilElapsed(2000, 3000);
+
+        client = CuratorFrameworkFactory.builder()
+                .connectString(zkServerPath)
+                .sessionTimeoutMs(10000).retryPolicy(retryPolicy)
+                .namespace("workspace").build();        //namespace：命令空间，在连接生成成功后，就会生成wordspace这个节点
+        //就是在根节点（/）下创建一个/workspace，然后所有这个client中操作的节点都创建在/workspace下
+        client.start();
+    }
+
+    /**
+     *
+     * @Description: 关闭zk客户端连接
+     */
+    public void closeZKClient() {
+        if (client != null) {
+            this.client.close();
+        }
+    }
+
+    public static void main(String[] args) throws Exception {
+        // 实例化
+        CuratorOperator cto = new CuratorOperator();
+        boolean isZkCuratorStarted = cto.client.isStarted();
+        System.out.println("当前客户的状态：" + (isZkCuratorStarted ? "连接中" : "已关闭"));
+
+
+        String nodePath = "/super/imooc";
+
+        /*// 创建节点
+		byte[] data = "superme".getBytes();
+		cto.client.create().creatingParentsIfNeeded() //.creatingParentsIfNeeded(): 可以递归一层层创建，使用命令行必须要先创建/super，再创建/super/imooc
+			.withMode(CreateMode.PERSISTENT)
+			.withACL(ZooDefs.Ids.OPEN_ACL_UNSAFE)
+			.forPath(nodePath, data);*/
+
+        /*// 更新节点数据
+		byte[] newData = "leihou".getBytes();
+		cto.client.setData().withVersion(0).forPath(nodePath, newData);
+		//如果版本不对会报错：KeeperException$BadVersionException: KeeperErrorCode = BadVersion for /workspace/super/imooc*/
+
+        /*// 删除节点
+		cto.client.delete()
+				  .guaranteed()					// 如果删除失败，那么在后端还是继续会删除，直到成功
+				  .deletingChildrenIfNeeded()	// 如果有子节点，就删除
+				  .withVersion(1)
+				  .forPath(nodePath);           //这个会删除imooc及其子节点，但是不会删除/workspace/super*/
+
+        /*// 读取节点数据
+		Stat stat = new Stat();
+		byte[] data = cto.client.getData().storingStatIn(stat).forPath(nodePath);
+		//storingStatIn(stat)：在获得这个节点数据的同时把节点的信息填在stat中，否则stat.getVersion() == 0(初始值)
+		System.out.println("节点" + nodePath + "的数据为: " + new String(data));
+		System.out.println("该节点的版本号为: " + stat.getVersion());*/
+
+        /*// 查询子节点
+		List<String> childNodes = cto.client.getChildren().forPath(nodePath);
+		System.out.println("开始打印子节点：");
+		for (String s : childNodes) {
+			System.out.println(s);
+		}*/
+
+        /*// 判断节点是否存在,如果不存在则为空
+        Stat statExist = cto.client.checkExists().forPath(nodePath + "/a");
+        System.out.println(statExist == null ? "该节点不存在" : "该节点存在");*/
+
+
+        /*// watcher 事件  当使用usingWatcher的时候，监听只会触发一次，监听完毕后就销毁
+        //CuratorWatcher和Watcher的区别就是CuratorWatcher的process()方法会抛出异常
+        cto.client.getData().usingWatcher(new MyCuratorWatcher()).forPath(nodePath);
+        //cto.client.getData().usingWatcher(new MyWatcher()).forPath(nodePath);*/
+
+        /*// 为节点添加watcher，监听会一直存在，可以多次触发
+        NodeCache nodeCache = new NodeCache(cto.client, nodePath);
+        // NodeCache: 监听数据节点的变更，会触发事件
+        // buildInitial为true : 初始化的时候获取node的值并且缓存
+        nodeCache.start(true);
+        if (nodeCache.getCurrentData() != null) {
+            System.out.println("节点初始化数据为：" + new String(nodeCache.getCurrentData().getData()));
+        } else {
+            System.out.println("节点初始化数据为空...");
+        }
+        nodeCache.getListenable().addListener(
+                () -> {       //当监听到nodepath节点改变，就会调用这个方法
+                    if (nodeCache.getCurrentData() == null) {
+                        System.out.println("空");
+                        return;
+                    }
+                    String data = new String(nodeCache.getCurrentData().getData());
+                    System.out.println("节点路径：" + nodeCache.getCurrentData().getPath() + "数据：" + data);
+                }
+        );*/
+
+
+        // 为子节点添加watcher
+        // PathChildrenCache: 监听数据节点的增删改，会触发事件
+        String childNodePathCache =  nodePath;
+        // cacheData: 设置缓存节点的数据状态
+        PathChildrenCache childrenCache = new PathChildrenCache(cto.client, childNodePathCache, true);
+         //StartMode: 初始化方式
+         //POST_INITIALIZED_EVENT：异步初始化，初始化之后会触发事件
+         //NORMAL：异步初始化
+         //BUILD_INITIAL_CACHE：同步初始化
+        childrenCache.start(StartMode.POST_INITIALIZED_EVENT);
+        List<ChildData> childDataList = childrenCache.getCurrentData();
+        System.out.println("当前数据节点的子节点数据列表：");
+        for (ChildData cd : childDataList) {
+            String childData = new String(cd.getData());
+            System.out.println(childData);
+        }
+        childrenCache.getListenable().addListener(
+                (CuratorFramework client, PathChildrenCacheEvent event) -> {
+                    if(event.getType().equals(PathChildrenCacheEvent.Type.INITIALIZED)){
+                        System.out.println("子节点初始化ok...");
+                    }
+
+                    else if(event.getType().equals(PathChildrenCacheEvent.Type.CHILD_ADDED)){
+                        String path = event.getData().getPath();
+                        if (path.equals(ADD_PATH)) {
+                            System.out.println("添加子节点:" + event.getData().getPath());
+                            System.out.println("子节点数据:" + new String(event.getData().getData()));
+                        } else if (path.equals("/super/imooc/e")) {
+                            System.out.println("添加不正确...");
+                        }
+
+                    }else if(event.getType().equals(PathChildrenCacheEvent.Type.CHILD_REMOVED)){
+                        System.out.println("删除子节点:" + event.getData().getPath());
+                    }else if(event.getType().equals(PathChildrenCacheEvent.Type.CHILD_UPDATED)){
+                        System.out.println("修改子节点路径:" + event.getData().getPath());
+                        System.out.println("修改子节点数据:" + new String(event.getData().getData()));
+                    }
+                }
+            );
+
+        Thread.sleep(100000);
+
+        cto.closeZKClient();
+        boolean isZkCuratorStarted2 = cto.client.isStarted();
+        System.out.println("当前客户的状态：" + (isZkCuratorStarted2 ? "连接中" : "已关闭"));
+    }
+
+    public final static String ADD_PATH = "/super/imooc/d";
+
+}
+
+class MyCuratorWatcher implements CuratorWatcher {
+
+    @Override
+    public void process(WatchedEvent event) throws Exception {
+        System.out.println("触发watcher，节点路径为：" + event.getPath());
+    }
+
+}
+```
+
+## 第8章 Dubbo入门到重构服务
+
+系统之间的调用方式：
+
+* Webservice - wsdl
+* httpclient
+* rpc通信（dubbo） / restful（springcloud）
+
+### 8-2 dubbo入门简介
+
+* 最大程度解耦，降低系统耦合性
+* 生产者/消费者模式
+* zk注册中心，admin监控中心，协议支持
+
+
+
+
+
 
 
 
