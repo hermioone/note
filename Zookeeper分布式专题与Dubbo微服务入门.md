@@ -1133,33 +1133,172 @@ class MyCuratorWatcher implements CuratorWatcher {
 * 生产者/消费者模式
 * zk注册中心，admin监控中心，协议支持
 
+## 第9章 分布式锁
 
+### 9-1 死锁和活锁
 
+死锁：一个进程获得锁，可以对数据库增删改查，其他进程等待这个进程结束后才有可能拿到锁访问数据库
 
+活锁：一个进程对数据库增删改查，其他进程可以对数据库执行只读操作。
 
+### 9-2 zookeeper分布式锁
 
+多个进程访问同一个数据库，可能会有最终数据不一致的现象。
 
+举例：秒杀，第一个请求过来查询库存，此时库存数量为1，可以创建订单，在创建订单的过程中，另一个请求过来，查询库存也为1，也可以创建订单。最终数据对业务是有问题的。
 
+解决数据不一致（防止库存为负）：**加分布式锁**
 
+### 9-4 获取分布式锁的流程
 
+分布式锁的流程图
 
+![](http://static.zybuluo.com/vermouth9/yked1z9t1sdr0108hb8pr5a8/image.png)
 
+用户如果不把节点delete，而是直接关闭会话，这个zk节点应该随着会话的关闭而删除，所以zk节点应该是**临时性**的。
 
+分布式锁和分布式缓存本质是一样的，都是把锁或者缓存这种本来存在单机上的东西交给第三方来管理。
 
+### 9-5 开发分布式锁
 
+千万不能忘记释放锁
 
+```java
+package com.imooc.curator.utils;
 
+import java.util.concurrent.CountDownLatch;
 
+import org.apache.curator.framework.CuratorFramework;
+import org.apache.curator.framework.recipes.cache.PathChildrenCache;
+import org.apache.curator.framework.recipes.cache.PathChildrenCache.StartMode;
+import org.apache.curator.framework.recipes.cache.PathChildrenCacheEvent;
+import org.apache.curator.framework.recipes.cache.PathChildrenCacheListener;
+import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.ZooDefs.Ids;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+/**
+ * @Description: 分布式锁的实现工具类
+ */
+public class DistributedLock {
+	
+	private CuratorFramework client = null;		// zk客户端
+	
+	final static Logger log = LoggerFactory.getLogger(DistributedLock.class);
+	
+	// 用于挂起当前请求，并且等待上一个分布式锁释放
+	private static CountDownLatch zkLocklatch = new CountDownLatch(1);
+	
+	// 分布式锁的总节点名,为了区分不同的项目
+	private static final String ZK_LOCK_PROJECT = "imooc-locks";
+	// 分布式锁节点，当前业务的锁
+	private static final String DISTRIBUTED_LOCK = "distributed_lock";
+	
+	// 构造函数
+    public DistributedLock(CuratorFramework client) {
+    	this.client = client;
+    }
+    
+    /**
+     * @Description: 初始化锁
+     */
+    public void init() {
+		
+    	// 使用命名空间
+    	client = client.usingNamespace("ZKLocks-Namespace");
 
+    	/**
+    	 * 创建zk锁的总节点，相当于eclipse的工作空间下的项目
+    	 * 		ZKLocks-Namespace
+    	 * 			|
+    	 * 			 —— imooc-locks
+    	 * 					|
+    	 * 					 —— distributed_lock
+    	 */
+		try {
+			if (client.checkExists().forPath("/" + ZK_LOCK_PROJECT) == null) {
+				client.create()
+						.creatingParentsIfNeeded()
+						.withMode(CreateMode.PERSISTENT)
+						.withACL(Ids.OPEN_ACL_UNSAFE)
+						.forPath("/" + ZK_LOCK_PROJECT);
+			}
+			// 针对zk的分布式锁节点，创建相应的watcher事件监听
+			addWatcherToLock("/" + ZK_LOCK_PROJECT);
+			
+		} catch (Exception e) {
+			log.error("客户端连接zookeeper服务器错误... 请重试...");
+		}
+	}
+	
+	/**
+	 * @Description: 获得分布式锁
+	 */
+	public void getLock() {
+		// 使用死循环，当且仅当上一个锁释放并且当前请求获得锁成功后才会跳出
+		while (true) {
+			try {
+				client.create()
+						.creatingParentsIfNeeded()
+						.withMode(CreateMode.EPHEMERAL)		//临时节点
+						.withACL(Ids.OPEN_ACL_UNSAFE)
+						.forPath("/" + ZK_LOCK_PROJECT + "/" + DISTRIBUTED_LOCK);
+				log.info("获得分布式锁成功...");
+				return;										// 如果锁的节点能被创建成功，则锁没有被占用
+			} catch (Exception e) {
+				log.info("获得分布式锁失败...");
+				try {
+					// 如果没有获取到锁，需要重新设置同步资源值
+					if(zkLocklatch.getCount() <= 0){
+						zkLocklatch = new CountDownLatch(1);
+					}
+					// 阻塞线程
+					zkLocklatch.await();
+				} catch (InterruptedException ie) {
+					ie.printStackTrace();
+				}
+			}
+		}
+	}
 
-
-
-
-
-
-
-
+	/**
+	 * @Description: 释放分布式锁
+	 */
+	public boolean releaseLock() {
+		try {
+			if (client.checkExists().forPath("/" + ZK_LOCK_PROJECT + "/" + DISTRIBUTED_LOCK) != null) {
+				client.delete().forPath("/" + ZK_LOCK_PROJECT + "/" + DISTRIBUTED_LOCK);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			return false;
+		}
+		log.info("分布式锁释放完毕");
+		return true;
+	}
+	
+	/**
+	 * @Description: 创建watcher监听
+	 */
+	public void addWatcherToLock(String path) throws Exception {
+		final PathChildrenCache cache = new PathChildrenCache(client, path, true);
+		cache.start(StartMode.POST_INITIALIZED_EVENT);
+		cache.getListenable().addListener(new PathChildrenCacheListener() {
+			public void childEvent(CuratorFramework client, PathChildrenCacheEvent event) throws Exception {
+				if (event.getType().equals(PathChildrenCacheEvent.Type.CHILD_REMOVED)) {
+					String path = event.getData().getPath();66
+					log.info("上一个会话已释放锁或该会话已断开, 节点路径为: " + path);
+					if(path.contains(DISTRIBUTED_LOCK)) {
+						log.info("释放计数器, 让当前请求来获得分布式锁...");						
+						zkLocklatch.countDown();
+					}
+				}
+			}
+		});
+	}
+}
+```
 
 ## 备注
 
@@ -1173,10 +1312,5 @@ class MyCuratorWatcher implements CuratorWatcher {
   'world,'anyone
   : cdrwa
   ```
-
-
-
-
-
 
 
