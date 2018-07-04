@@ -1289,6 +1289,62 @@ f1()
 # 不是闭包
 ```
 
+下面以java代码为例为什么闭包可以保存环境
+
+```java
+interface Counter { int next(); }
+
+public class LocalInnerClass {
+    private int count = 0;
+
+    Counter getCounter1(String name) {
+        class LocalCounter1 implements Counter {
+            @Override
+            public int next() {
+                System.out.print(name + ": ");
+                return count++;
+            }
+        }
+        return new LocalCounter1();
+    }
+
+    Counter getCounter2(String name) {
+        return new Counter() {
+            @Override
+            public int next() {
+                System.out.print(name + ": ");
+                return count++;
+            }
+        };
+    }
+
+    public static void main(String[] args) {
+        LocalInnerClass lic = new LocalInnerClass();
+        Counter
+                c1 = lic.getCounter1("Local inner"),
+                c2 = lic.getCounter2("anonymous inner");
+        for (int i = 0; i < 5; i++)
+            System.out.println(c1.next());
+        for (int j = 0; j < 5; j++)
+            System.out.println(c2.next());
+    }
+}
+/**
+ * Local inner: 0
+ * Local inner: 1
+ * Local inner: 2
+ * Local inner: 3
+ * Local inner: 4
+ * anonymous inner: 5
+ * anonymous inner: 6
+ * anonymous inner: 7
+ * anonymous inner: 8
+ * anonymous inner: 9
+ */
+```
+
+因为count是lic的成员变量，所以只要调用getCounterx，就是用lic来调用的，因此闭包可以保存环境。
+
 ## 11-14 非闭包解决
 
 ```python
