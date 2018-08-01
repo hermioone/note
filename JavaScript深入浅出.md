@@ -124,3 +124,43 @@ console.log(str.t)				// undefined
 
 ```instanceof```适合自定义对象，也可以用来检测原生对象
 
+## 第2章 表达式和运算符
+
+### 2-1 表达式
+
+表达式是一种JS短语，可使JS解释器用来产生一个值
+
+### 2-2 运算符
+
+```javascript
+var x = (1, 2, 3);			// 从左到右，所以x的最后值是3
+```
+
+delete运算符：用于删除对象上的属性
+
+```js
+var obj = {x: 1};
+delete obj.x;
+obj.x;					// undefined
+```
+
+in运算符
+
+```js
+window.x = 1;
+'x' in window;				// true
+```
+
+```js
+function Foo() {}
+Foo.prototype.x = 1;
+var obj = new Foo();
+obj.x;		// 1
+obj.hasOwnProperty('x');		// false
+obj.__proto__.hasOwnProperty('x');		// true
+```
+
+## 第3章 语句
+
+JS中**没有块级作用域**
+
