@@ -1,0 +1,915 @@
+# Java设计模式精讲
+
+## 第2章 UML极速入门
+
+### 2-1 本章导航
+
+**UML特点**：
+
+* UML是一种开放的方法
+* 用于说明、可视化、构建和编写一个正在开发的面向对象的、软件密集系统的制品和开发方法
+* UML展现了一系列最佳工程实践
+
+**UML2.2分类**
+
+* 结构式图形：强调的是系统式的建模
+  * 静态图（类图、对象图、包图）
+  * 实现图（组件图、部署图）
+  * 剖面图
+  * 复合结构图
+* 行为式图形：强调系统模型中触发的事件
+  * 活动图
+  * 状态图
+  * 用例图
+* 交互式图形：属于行为式图形子集合，强调系统模型中资料流程
+  * 通信图
+  * 交互概述图
+  * 时序图
+  * 时间图
+
+**记忆技巧**：
+
+1. UML箭头方向：从子类指向父类
+
+   * 定义子类时需要通过extends关键字指定父类
+   * 子类一定知道父类定义，但是父类并不知道子类的定义
+   * 只有知道对方信息时才能指向对方，所以 子类 ==> 父类
+2. 实线：继承；虚线：实现
+
+   * 空心三角箭头：继承或实现
+   * 实线：继承，不虚，很结实
+   * 虚线：代表虚，无实体
+3. 实线：关联；虚线：依赖
+
+   * 虚线：临时用一下，表示一种使用关系，一般是一个类使用另一个类作为参数使用或作为返回值
+   * 实线：关系稳定，通常是一个类中有另一个类作为属性
+4. 空心菱形：聚合；实心菱形：组合
+
+   * 菱形就是一个装东西的器皿
+   * 聚合：
+     * 代表空器皿中可以放很多相同东西，聚在一起（箭头指向的类），比如大雁聚合在一起形成大雁群
+     * 整体和局部的关系，两者有独立的生命周期，是has-a的关系
+   * 组合：
+     * 代表器皿里已经有实体结构的存在，比如鸟由翅膀组成
+     * 整体和局部的关系，两者有相同的生命周期，是contains-a的关系
+5. 常见数字表达式及含义，假设有A类和B类，数字在A类侧
+
+   * 0..1：某一时刻，B的实例可以和0个或1个A的实例相关
+   * 0..*：0或多个
+   * 1..1：有且仅有一个实例
+   * 1：同上
+   * 1..*：B的实例可以和1个或多个A的实例相关
+
+**UML时序图**：
+
+![](http://static.zybuluo.com/vermouth9/bgugtl0rzswvm4l7faj8tzo1/image.png)
+
+### 2-2 UML类图讲解
+
+![](http://static.zybuluo.com/vermouth9/0ixvn5akzaffnfj3movu9gov/image.png)
+
+### 2-2 UML类图讲解-自上向下
+
+![](http://static.zybuluo.com/vermouth9/jo66338ehggl29dbt59gxom9/image.png)
+
+* 动物 **依赖** 氧气和水（新陈代谢()依赖氧气和水来实现功能）
+* 鸟 **is a** 动物（继承）
+* 每个鸟 **contains** 2个翅膀（组合）
+* 大雁、鸭、企鹅 **继承* *鸟
+* 企鹅类中 **有** 气候这个成员 **变量** （关联）
+* 大雁群 **has a** 大雁（聚合）
+* 大雁 **实现** 了飞翔接口
+* 唐老鸭 **继承** 了鸭，**实现** 了讲人话接口
+
+## 第3章 软件设计七大原则
+
+设计原则讲究一个度，讲究平衡，不是一定要遵守。
+
+### 3-2 开闭原则
+
+ #### 讲解
+
+定义：一个软件实体（类、模块、函数）应该对扩展开放，对修改关闭
+
+用抽象构建框架，用实现扩展细节
+
+实现开闭原则的核心思想：**面向抽象编程**
+
+### 3-4 依赖倒置原则
+
+#### 讲解
+
+定义：高层模块不应该依赖底层模块，二者都应该依赖其抽象。
+
+抽象不应该依赖细节；细节应该依赖抽象。
+
+针对接口编程，不用针对实现编程。
+
+优点：减少类间的耦合性，提高系统稳定性。
+
+#### coding
+
+```java
+public class Geely {
+    public void studyImoocCourse(ICourse iCourse) {
+        iCourse.studyCourse();
+    }
+}
+
+interface ICourse {
+    void studyCourse();
+}
+
+class JavaCourse implements ICourse {
+    @Override
+    public void studyCourse() {
+        System.out.println("Geely在学习Java课程");
+    }
+}
+
+class FECourse implements ICourse {
+    @Override
+    public void studyCourse() {
+        System.out.println("Geely在学习前端课程");
+    }
+}
+
+public class Test {
+    private static void test2() {
+        Geely geely = new Geely();
+        geely.studyImoocCourse(new JavaCourse());
+        geely.studyImoocCourse(new FECourse());
+    }
+
+    public static void main(String[] args) {
+		test2();
+    }
+}
+```
+
+### 3-5 单一职责原则
+
+#### 讲解
+
+定义：不要存在多于一个导致类变更的原因
+
+一个类、接口、方法只负责一项职责
+
+优点：降低类的复杂度，提供类的可读性，提供系统的可维护性，降低变更引起的风险。
+
+在实际开发中，**接口和方法一定要遵守单一职责，类看情况考虑**。
+
+### 3-7 接口隔离原则
+
+#### 讲解
+
+定义：用多个专门的接口，而不使用单一的总接口，客户端不应该依赖它不需要的接口。
+
+一个类对一个类的依赖应该建立在最小的接口上。
+
+建立单一接口，不要建立庞大臃肿的接口。
+
+优点：符合高内聚低耦合，从而使得类具有很好的可读性、可扩展性和可维护性。
+
+### 3-8 迪米特法则
+
+#### 讲解
+
+定义：一个对象应该对其他对象保持最少的了解，又叫最少知道原则。
+
+尽量降低类与类之间的耦合。
+
+优点：降低类之间的耦合。
+
+### 3-9 里氏替换原则
+
+#### 讲解
+
+定义：如果对每个类型为T1的对象o1，都有类型为T2的对象o2，使得以T1定义的所有程序P在所有的对象o1都替换成o2时，程序P的行为没有发生变化，那么类型T2是类型T1的子类型。
+
+定义扩展：一个软件实体如果适用一个父类的话，那一定适用于其子类，所有引用父类的地方必须能透明地使用其子类的对象，子类对象能够替换父类对象，而程序逻辑不变。
+
+引申意义：子类可以扩展父类的功能，但不能改变父类原有的功能。
+
+* 子类可以实现父类的抽象方法，但不能覆盖父类的非抽象方法。
+* 子类中可以增加自己特有的方法。
+* 当子类的方法重载父类的方法时，方法的前置条件（即方法的输入、入参）要比父类方法的输入参数更宽松。
+* 当子类的方法实现父类的方法时，方法的后置条件（即方法的输出、返回值）要比父类更严格或相等。
+
+优点：
+
+1. 约束继承泛滥，开闭原则的一种体现。
+2. 加强程序的健壮性，提供程序的维护性、扩展性。
+
+### 3-11 合成复用原则
+
+#### 讲解
+
+定义：尽量**使用对象组合、聚合，而不是继承关系**达到软件复用的目的。
+
+聚合has-a和组合contains-a
+
+优点：可以使系统更加灵活，降低类与类之间的耦合度。
+
+* 聚合：黑箱复用
+* 继承：白箱复用
+
+## 第4章 简单工厂模式
+
+### 4-1 简单工厂讲解
+
+定义：由一个工厂对象决定创建出哪一种产品类的实例
+
+类型：创建型，但不属于GOF23种设计模式
+
+#### 适用场景
+
+1. 工厂类负责创建的对象比较少
+2. 客户端只知道传入工厂类的参数，对于如何创建对象不关心
+
+#### 优点
+
+1. 实现了客户端和具体实现类的解耦
+
+#### 缺点
+
+1. 工厂类的职责权责相对过重，增加新的产品需要修改工厂类的判断逻辑，违背开闭原则。
+
+#### 典型疑问
+
+> 简单工厂不就是把客户端里面的```new JavaVideo()```移动到了简单工厂里面吗？
+
+理解这个问题的重点就在于***理解简单工厂所处的位置***。
+
+接口是用来封装隔离具体的实现的，目标是为了不让客户端知道封装体内部的具体实现（比如不让Test.java知道JavaVideo）。简单工厂的位置是位于封装体内的，也就是简单工厂是跟接口和具体的实现在一起，算是封装体内部的一个类，所以简单工厂知道具体的实现类是没有关系的。
+
+#### 思考简单工厂
+
+简单工厂的本质是：**选择实现**
+
+### 4-2 简单工厂coding
+
+```java
+public class VideoFactory {
+    public static Video getVideo(String type) {
+        if ("java".equalsIgnoreCase(type)) {
+            return new JavaVideo();
+        }else if ("python".equalsIgnoreCase(type)) {
+            return new PythonVideo();
+        }
+        return null;
+    }
+
+    /**
+     * 通过反射增强简单工厂
+     * @param cl Video的具体类型
+     * @return 生成的Video对象
+     */
+    public static Video getVideo(Class cl) {
+        Video video = null;
+        try {
+            video = (Video)cl.newInstance();
+        } catch (InstantiationException e) {
+            e.printStackTrace();
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        }
+        return video;
+    }
+}
+```
+
+### 4-3 简单工厂源码解析
+
+Calendar.java中的
+
+```java
+private static Calendar createCalendar(TimeZone zone, Locale aLocale) {
+    CalendarProvider provider =
+            LocaleProviderAdapter.getAdapter(CalendarProvider.class, aLocale)
+                                 .getCalendarProvider();
+        // ...
+
+        Calendar cal = null;
+
+        if (aLocale.hasExtensions()) {
+            String caltype = aLocale.getUnicodeLocaleType("ca");
+            if (caltype != null) {
+                switch (caltype) {
+                case "buddhist":
+                cal = new BuddhistCalendar(zone, aLocale);
+                    break;
+                case "japanese":
+                    cal = new JapaneseImperialCalendar(zone, aLocale);
+                    break;
+                case "gregory":
+                    cal = new GregorianCalendar(zone, aLocale);
+                    break;
+                }
+            }
+        }
+        if (cal == null) {
+            if (aLocale.getLanguage() == "th" && aLocale.getCountry() == "TH") {
+                cal = new BuddhistCalendar(zone, aLocale);
+            } else if (aLocale.getVariant() == "JP" && aLocale.getLanguage() == "ja"
+                       && aLocale.getCountry() == "JP") {
+                cal = new JapaneseImperialCalendar(zone, aLocale);
+            } else {
+                cal = new GregorianCalendar(zone, aLocale);
+            }
+        }
+        return cal;
+}
+```
+
+## 第5章 工厂方法模式
+
+### 5-1 工厂方法讲解
+
+定义：定义一个创建对象的接口，但让实现这个接口的类来决定实例化哪个类。工厂方法让类的实例化推迟到子类中进行。
+
+类型：创建型
+
+#### 使用场景
+
+1. 创建对象需要大量重复的代码
+2. 客户端不依赖与产品类实例如何被创建、实现等细节
+3. 一个类通过其子类来指定创建哪个对象
+
+#### 优点
+
+* 用户只需要关心所需产品对应的工厂，无须关心创建细节
+* 加入新产品符合开闭原则，提供可扩展性
+
+#### 缺点
+
+* 类的个数容易过多，增加复杂度
+* 增加了系统的抽象性和理解难度
+
+#### 产品族和产品等级
+
+* Java的视频，Python的视频，JavaScript的视频属于同一产品等级；
+* Python的视频、Python的手记属于同一产品族；
+* 美的的冰箱，海尔的冰箱属于同一产品等级；
+* 美的的冰箱，美的的洗衣机都是美的属于同一产品族；
+
+> 抽象工厂解决同一产品族的问题，工厂方法解决同一产品等级的问题。
+
+### 5-2 工厂方法coding
+
+```java
+public abstract class Video {
+    public abstract void produce();
+}
+
+public class JavaVideo extends Video {
+    @Override
+    public void produce() {
+        System.out.println("Java课程");
+    }
+}
+
+public class PythonVideo extends Video {
+    @Override
+    public void produce() {
+        System.out.println("Python视频");
+    }
+}
+
+/**
+ * 为什么这里使用抽象类？可能这里面有一些已知的实现
+ */
+public abstract class VideoFactory {
+    public abstract Video getVideo();
+}
+
+public class JavaVideoFactory extends VideoFactory {
+    @Override
+    public Video getVideo() {
+        return new JavaVideo();
+    }
+}
+
+/**
+ * 具体产生什么视频，是由VideoFactory的子类来决定，而不是VideoFactory决定
+ */
+public class PythonVideoFactory extends VideoFactory {
+    @Override
+    public Video getVideo() {
+        return new PythonVideo();
+    }
+}
+```
+
+![](http://static.zybuluo.com/vermouth9/0p70vs7yajwqfx4khp0sceiu/image.png)
+
+### 5-3 工厂方法源码解析
+
+```java
+public interface Collection<E> extends Iterable<E> {
+	Iterator<E> iterator();
+}
+
+public class ArrayList<E> extends AbstractList<E>
+        implements List<E>, RandomAccess, Cloneable, java.io.Serializable
+{
+	public ListIterator<E> listIterator() {
+        return new ListItr(0);
+    }
+    
+    private class Itr implements Iterator<E> {
+        // ...
+    }
+}
+```
+
+所有Collection接口的子类都实现了自己的```iterator()```方法，返回了自己定义的```Iterator```接口的子类。
+
+```java
+public interface URLStreamHandlerFactory {
+    URLStreamHandler createURLStreamHandler(String protocol);
+}
+
+public class Launcher {
+    private static class Factory implements URLStreamHandlerFactory {
+        private static String PREFIX = "sun.net.www.protocol";
+
+        public URLStreamHandler createURLStreamHandler(String var1) {
+            String var2 = PREFIX + "." + var1 + ".Handler";
+            Class var3 = Class.forName(var2);
+            return (URLStreamHandler)var3.newInstance();
+            }
+        }
+    }
+}
+```
+
+这个是简单工厂和工厂方法的结合
+
+## 第6章 抽象工厂模式
+
+### 6-1 抽象工厂讲解
+
+定义：提供一个创建一系列相关或相互依赖对象的接口
+
+扩展：无须指定它们具体的类
+
+类型：创建型
+
+#### 适用场景
+
+1. 客户端不依赖于产品类实例如何被创建、实现等细节
+2. 强调一系列相关的产品对象（属于同一产品族）一起使用创建，创建对象需要大量重复的代码
+3. 提供一个产品类的库，所有的产品以同样的接口出现，从而使客户端不依赖于具体实现
+
+#### 优点
+
+* 具体产品在应用层代码隔离，无须关心创建细节
+* 将一个系列的产品族统一到一起创建
+
+#### 缺点
+
+* 规定了所有可能被创建的产品集合，产品族中扩展新的产品困难，需要修改抽象工厂的接口
+* 增加了系统的抽象性和理解难度
+
+#### 产品等级结构和产品族
+
+![](http://static.zybuluo.com/vermouth9/5l7gtsl0xka91bo1dr69pn11/image.png)
+
+### 6-2 抽象工厂coding
+
+```java
+public interface CourseFactory {
+    /**
+     * 视频
+     */
+    Video getVideo();
+
+    /**
+     * 手记
+     */
+    Article getArticle();
+}
+
+public class JavaCourseFactory implements CourseFactory {
+
+    @Override
+    public Video getVideo() {
+        return new JavaVideo();
+    }
+
+    @Override
+    public Article getArticle() {
+        return new JavaArticle();
+    }
+}
+
+public abstract class Article {
+    public abstract void produce();
+}
+
+public abstract class Video {
+    public abstract void produce();
+}
+
+public class JavaVideo extends Video {
+    @Override
+    public void produce() {
+        System.out.println("录制java视频");
+    }
+}
+
+public class JavaArticle extends Article {
+    @Override
+    public void produce() {
+        System.out.println("编写java手记");
+    }
+}
+
+public class Test {
+    public static void main(String[] args) {
+        CourseFactory courseFactory = new JavaCourseFactory();
+        
+        // Video和Article都是Java产品族的
+        Video video = courseFactory.getVideo();
+        Article article = courseFactory.getArticle();
+        video.produce();
+        article.produce();
+    }
+}
+```
+
+![](http://static.zybuluo.com/vermouth9/jglf9h90zvmar2ml1ncetpac/image.png)
+
+这个UML图是**抽象工厂和工厂方法的结合**
+
+### 6-3 抽象工厂源码解析
+
+```java
+package java.sql
+
+public interface Connection  extends Wrapper, AutoCloseable {
+	Statement createStatement() throws SQLException;
+	
+	PreparedStatement prepareStatement(String sql)
+        throws SQLException;
+}
+```
+
+如果是MySQL，那么```Statement```和```PreparedStatement```都是MySQL的；如果是Oracle，那么```Statement```和```PreparedStatement```都是Oracle。
+
+## 第7章 建造者模式
+
+### 7-1 建造者模式讲解
+
+定义：讲一个复杂对象的构建与它的表示分离，使得同样的构建过程可以创建不同的表示
+
+用户只需指定需要建造的类型就可以得到它们，建造过程及细节不需要知道
+
+类型：创建型
+
+#### 适用场景
+
+* 如果一个对象有非常复杂的内部结构（很多属性）
+* 想把复杂对象的创建和使用分离
+
+比如做一盘番茄炒蛋，必需的步骤有炒鸡蛋，炒西红柿，加盐，但是每个人做这些步骤的顺序可能不同。
+
+#### 优点
+
+* 封装性好，创建和使用分离
+* 扩展性好、建造类之间独立、一定程度上解耦
+
+#### 缺点
+
+* 产生多余的Builder对象
+* 产品内部发生变化，建造者都要修改，成本较大
+
+#### 建造者模式和工厂模式的区别
+
+* 建造者模式注重方法的调用顺序，工厂模式注重创建产品
+* 建造者模式可以创建一些复杂的产品，由各种复杂的构件组成；而工厂模式创建出来的都是一个样子
+* 工厂模式只要把对象创建出来就okay了，而建造者模式不止要创建出产品，还要知道产品是由哪些部件组成的。
+
+> 建造者模式适用于产生差异化的产品，产品由
+
+### 7-2 建造者coding
+
+```java
+public abstract class Builder {
+    public abstract void buildCPU(String cpu);
+    public abstract void buildMaindBoard(String mainBoard);
+    public abstract void buildhardDist(String hardDisk);
+    public abstract void buildDisplayCard(String displayCard);
+    public abstract void buildPower(String power);
+    public abstract void buildMemory(String memory);
+
+    public abstract Computer createComputer();
+}
+
+public class ActualBuilder extends Builder {
+    private Computer computer = new Computer();
+    @Override
+    public void buildCPU(String cpu) { computer.setCpu(cpu); }
+    @Override
+    public void buildMaindBoard(String mainBoard) { computer.setMainBoard(mainBoard); }
+    @Override
+    public void buildhardDist(String hardDisk) { computer.setHardDisk(hardDisk); }
+    @Override
+    public void buildDisplayCard(String displayCard) { computer.setDisplayCard(displayCard); }
+
+    @Override
+    public void buildPower(String power) { computer.setPower(power); }
+
+    @Override
+    public void buildMemory(String memory) { computer.setMemory(memory); }
+
+    @Override
+    public Computer createComputer() { return computer; }
+}
+
+@Data
+public class Computer {
+    private String cpu;
+    private String mainBoard;
+    private String hardDisk;
+    private String displayCard;
+    private String power;
+    private String memory;
+}
+
+@Data
+public class Boss {
+    private Builder builder;
+
+    public Computer createComputer(String cpu,
+            String mainBoard,
+            String hardDisk,
+            String displayCard,
+            String power,
+            String memory) {
+
+        this.builder.buildCPU(cpu);
+        this.builder.buildDisplayCard(displayCard);
+        this.builder.buildhardDist(hardDisk);
+        this.builder.buildMaindBoard(mainBoard);
+        this.builder.buildMemory(memory);
+        this.builder.buildPower(power);
+
+        return this.builder.createComputer();
+    }
+}
+```
+
+建造者模式中```Boss```这个类不是必须的，它的作用不是建造产品，而是指挥建造产品的顺序或者产品包含哪些组件。但是这种方式
+
+```java
+@Data
+public class Computer {
+    private String cpu;
+    private String mainBoard;
+    private String hardDisk;
+    private String displayCard;
+    private String power;
+    private String memory;
+
+    public Computer(ComputerBuilder computerBuilder) {
+        this.cpu = computerBuilder.cpu;
+        this.mainBoard = computerBuilder.mainBoard;
+        this.hardDisk = computerBuilder.hardDisk;
+        this.displayCard = computerBuilder.displayCard;
+        this.power = computerBuilder.power;
+        this.memory = computerBuilder.memory;
+    }
+
+    public static class ComputerBuilder {
+        private String cpu;
+        private String mainBoard;
+        private String hardDisk;
+        private String displayCard;
+        private String power;
+        private String memory;
+
+        public ComputerBuilder buildCPU(String cpu) {
+            this.cpu = cpu;
+            return this;
+        }
+
+        public ComputerBuilder buildMaindBoard(String mainBoard) {
+            this.mainBoard = mainBoard;
+            return this;
+        }
+
+        public ComputerBuilder buildhardDist(String hardDisk) {
+            this.hardDisk = hardDisk;
+            return this;
+        }
+
+        public ComputerBuilder buildDisplayCard(String displayCard) {
+            this.displayCard = displayCard;
+            return this;
+        }
+
+        public ComputerBuilder buildPower(String power) {
+            this.power = power;
+            return this;
+        }
+
+        public ComputerBuilder buildMemory(String memory) {
+            this.memory = memory;
+            return this;
+        }
+
+        public Computer build() {
+            return new Computer(this);
+        }
+
+    }
+}
+
+public class Boss {
+    public static Computer createComputer() {
+        return (new Computer.ComputerBuilder())
+                .buildCPU("i9")
+                .buildDisplayCard("1080Ti")
+                .build();
+    }
+}
+```
+
+### 7-3 建造者模式源码解析
+
+guava中的Immutable系列
+
+```java
+Set<String> set = ImmutableSet.<String>builder()
+                .add("a")
+                .add("b")
+                .build();
+```
+
+## 第8章 单例模式
+
+### 8-1 单例模式讲解
+
+定义：保证一个类仅有一个实例，并提供一个全局访问点
+
+类型：创建型
+
+#### 适用场景
+
+想确保任何情况下都绝对只有一个实例
+
+#### 优点
+
+* 在内存中只有一个实例，减少了内存开销
+* 避免对资源的多重占用
+* 设置全局访问点，严格控制访问
+
+#### 缺点
+
+* 没有接口，扩展困难
+
+#### 单例重点
+
+* 私有构造器
+* 线程安全
+* 延迟加载
+* 序列化和反序列化安全
+* 反射
+
+### 8-2 单例设计模式-懒汉式及多线程Debug实战
+
+```java
+public class LazySingleton {
+    private static LazySingleton lazySingleton = null;
+
+    private LazySingleton() {}
+
+    @UnRecommend("线程不安全")
+    public static LazySingleton getInstanceUnSafe() {
+        if (lazySingleton == null) {
+            lazySingleton = new LazySingleton();
+        }
+        return lazySingleton;
+    }
+
+    // 锁了LazySingleton这个类
+    @UnRecommend("比较消耗资源，性能较差")
+    public synchronized static LazySingleton getInstance() {
+        if (lazySingleton == null) {
+            lazySingleton = new LazySingleton();
+        }
+        return lazySingleton;
+    }
+}
+```
+
+### 8-3 单例设计模式-DoubleCheck双重检查实战及原理解析
+
+```java
+package com.vermnouth.pattern.creational.singleton.lazy;
+
+import com.vermnouth.annotations.UnRecommend;
+
+public class LazyDoubleCheckSingleton {
+    private static LazyDoubleCheckSingleton instance = null;
+    private LazyDoubleCheckSingleton() {}
+    public static LazyDoubleCheckSingleton getInstanceUnSafe() {
+        if (instance == null) {
+            synchronized (LazyDoubleCheckSingleton.class) {
+                if (instance == null) {
+                    instance = new LazyDoubleCheckSingleton();
+                }
+            }
+        }
+        return instance;
+    }
+}
+
+```
+
+这种方法有一个潜在的危害：**指令重排序**
+
+```instance = new LazyDoubleCheckSingleton()```实际运行时分成3步：
+
+1. 分配内存给这个对象
+2. 初始化对象
+3. 设置instance指向刚分配的内存
+
+这里的步骤2和步骤3很可能会发生指令重排序，使得实际的执行顺序是1 => 3 => 2。
+
+Java语言规范中规定所有线程在执行Java程序时，必须遵守 intra-thread semantics，保证重排序不会改变单线程内的程序执行结果（对于单线程来说，1->3->2的顺序不会改变结果）。
+
+但是对多线程就会有问题
+
+![](http://static.zybuluo.com/vermouth9/2wuyl3sy19nyf3prr12nf3dm/image.png)
+
+在这里，线程0进行到步骤3的时候被挂起，线程1开始执行，此时因为```instance```已经指向了分配的内存空间，所有此时```instance != null```，线程1直接就把```instance```返回了，但此时```instance```指向的内存空间还没有初始化，所以就出错了。
+
+***解决办法***：
+
+1. 不允许2和3重排序：使用```volatile```关键字
+
+   ```volatile```不仅可以保证内存可见性，还可以阻止JVM对相关代码进行指令重排。
+
+   ```java
+   public class LazyDoubleCheckSingleton {
+       private static volatile LazyDoubleCheckSingleton instance = null;
+       private LazyDoubleCheckSingleton() {}
+       public static LazyDoubleCheckSingleton getInstance() {
+           if (instance == null) {
+               synchronized (LazyDoubleCheckSingleton.class) {
+                   if (instance == null) {
+                       instance = new LazyDoubleCheckSingleton();
+                   }
+               }
+           }
+           return instance;
+       }
+   }
+   ```
+
+2. 步骤2和3的重排序对其它线程不可见：下一节
+
+### 8-4 单例设计模式-静态内部类-基于类初始化的延迟加载解决方案
+
+```java
+public class StaticInnerClassSingleton {
+    private static class InnerClass {
+        private static StaticInnerClassSingleton instance = new StaticInnerClassSingleton();
+    }
+
+    public static StaticInnerClassSingleton getInstance() {
+        return InnerClass.instance;
+    }
+    
+    private StaticInnerClassSingleton() {}
+}
+```
+
+由于```instance```是静态的域，因此只会在虚拟机装载类```InnerClass```的时候初始化依次，并由虚拟机保证线程它的安全。
+
+> 这种方式在加载StaticInnerClassSingleton类的时候并不会加载InnerClass类，也就不会创建instance实例，只有在调用InnerClass.instance时才执行了InnerClass类的初始化，创建了instance对象，这就是和饿汉式单例模式的区别
+
+假设一个类为A，以下的这几种情况都会导致A被立刻初始化：
+
+* 有一个A类的对象被创建
+* A类中的静态方法被调用
+* A类中的静态成员被赋值
+* A类中的静态成员被使用，并且不是常量成员
+
+![](http://static.zybuluo.com/vermouth9/pjt7du1h5ac09h4hruqgyi9o/image.png)
+
+### 8-5 单例设计模式-饿汉式
+
+```java
+public class HungrySingleton {
+    private final static HungrySingleton instance = new HungrySingleton();
+    private HungrySingleton() {}
+    public static HungrySingleton getInstance() {
+        return instance;
+    }
+}
+```
+
