@@ -913,3 +913,322 @@ public class HungrySingleton {
 }
 ```
 
+### 8-6 单例设计模式-序列化破坏单例模式原理及解决方案
+
+```java
+public class Test {
+    public static void main(String[] args) throws Exception {
+        test1();            // false
+    }
+    private static void test1() throws Exception {
+        HungrySingleton instance = HungrySingleton.getInstance();
+
+        ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream("singleton.txt"));
+        oos.writeObject(instance);
+
+        File file = new File("singleton.txt");
+        ObjectInputStream ois = new ObjectInputStream(new FileInputStream(file));
+
+        HungrySingleton newInstance = (HungrySingleton) ois.readObject();
+
+        System.out.println(instance == newInstance);
+    }
+}
+```
+
+因为在执行反序列化时，ObjectInputStream中
+
+```java
+obj = desc.isInstantiable() ? desc.newInstance() : null;
+```
+
+因为实现了```Serializable```接口，因此```obj = desc.newInstance()```，调用了反射创建新的对象。
+
+解决方法：
+
+```java
+@Recommend("可以防止序列化破坏单例模式")
+public class HungrySingletonSeria implements Serializable {
+    private final static HungrySingletonSeria instance = new HungrySingletonSeria();
+    private HungrySingletonSeria() {}
+    public static HungrySingletonSeria getInstance() {
+        return instance;
+    }
+
+    private Object readResolve() {
+        return instance;
+    }
+}
+```
+
+在反序列化的过程中，通过反射创建了新的对象后，会通过反射检查有没有```readResolve()```方法，如果有的话会调用这个方法并把返回结果返回回去，所以可以保证序列化不会破坏单例。
+
+**但是其实在序列化的过程中还是创建了新的对象。**
+
+### 8-7 单例设计模式-反射攻击解决方案及原理分析
+
+对于饿汉式和静态内部类懒汉式来说，可以通过在构造器中判断instance是否为空 ，如果不为空则抛出异常来
+
+```java
+public class HungrySingletonSeriaRefl implements Serializable {
+    private final static HungrySingletonSeriaRefl instance = new HungrySingletonSeriaRefl();
+
+    private HungrySingletonSeriaRefl() {
+        if (instance != null) {
+            throw new RuntimeException("单例模式不允许反射调用");
+        }
+    }
+
+    public static HungrySingletonSeriaRefl getInstance() {
+        return instance;
+    }
+
+    private Object readResolve() {
+        return instance;
+    }
+}
+```
+
+**对于其他的懒汉式，无法防止反射攻击。**因为不管设置再复杂的逻辑，添加什么成员变量，都可以通过反射修改。
+
+### 8-8 单例设计模式-Enum枚举单例
+
+枚举类单例可以不受序列化和反射攻击的影响。
+
+```java
+public enum EnumInstance {
+    INSTANCE{
+        @Override
+        protected void printTest() {
+            System.out.println("printTest");
+        }
+    };
+
+    private Object data;
+
+    public Object getData() {
+        return data;
+    }
+    public void setData(Object data) {
+        this.data = data;
+    }
+    public static EnumInstance getInstance() {
+        return INSTANCE;
+    }
+
+    protected abstract void printTest();		// 别的类可以用printTest()
+}
+
+public class Test {
+    public static void main(String[] args) {
+        EnumInstance instance = EnumInstance.getInstance();
+        instance.printTest();
+    }
+}
+```
+
+## 第9章 原型模式
+
+### 9-1 原型模式讲解
+
+定义：原型实例指定创建对象的种类，并且通过拷贝这些原型创建新的对象
+
+不需要知道任何创建的细节，不调用构造函数
+
+类型：创建型
+
+#### 适用场景
+
+* 类初始化消耗较多资源
+* new产生的一个对象需要非常繁琐的过程（数据准备、访问权限）
+* 构造函数较复杂
+* 循环体重生产大量的对象时
+
+#### 优点
+
+* 原型模式性能比直接new一个对象性能高
+* 简化创建过程
+
+#### 缺点
+
+* 必须配备克隆方法```clone()```
+* 对克隆复杂对象或对克隆出的对象进行复杂改造时，容易引入风险
+* 深拷贝、浅拷贝要运用得当
+
+### 9-2 原型模式coding
+
+```java
+@Data
+public class Pig implements Cloneable {
+    private String name;
+    private Date birthday;
+
+    public Pig(String name, Date birthday) {
+        this.name = name;
+        this.birthday = birthday;
+    }
+
+    @Override
+    protected Object clone() throws CloneNotSupportedException {
+        Pig pig = (Pig) super.clone();               // 浅克隆
+        
+        // 要向实现深克隆，那些引用类型的成员变量也必须克隆
+        // pig.birthday = (Date) this.birthday.clone();
+        return pig;
+    }
+}
+
+public class Test {
+    public static void main(String[] args) throws Exception {
+        Date birthday = new Date(0L);
+        Pig pig1 = new Pig("佩奇", birthday);
+        Pig pig2 = (Pig) pig1.clone();
+
+        System.out.println(pig1);      // Pig(name=佩奇, birthday=Thu Jan 01 08:00:00 CST 1970)
+        System.out.println(pig2);      // Pig(name=佩奇, birthday=Thu Jan 01 08:00:00 CST 1970)
+
+        pig1.getBirthday().setTime(666666L);
+
+        System.out.println(pig1);      // Pig(name=佩奇, birthday=Thu Jan 01 08:11:06 CST 1970)
+        System.out.println(pig2);      // Pig(name=佩奇, birthday=Thu Jan 01 08:11:06 CST 1970)
+    }
+}
+```
+
+**克隆也会破坏单例**。
+
+解决办法：
+
+```java
+@Override
+protected Object clone() throws CloneNotSupportedException {
+    return getInstance();
+}
+```
+
+## 第10章 外观模式
+
+### 10-1 外观模式讲解
+
+定义：又叫门面模式，提供了一个统一的接口，用来访问子系统中的一群接口
+
+外观模式定义了一个高层接口，让子系统更容易使用
+
+类型：结构型
+
+#### 适用场景
+
+* 子系统越来越复杂，增加外观模式提供简单调用接口
+* 构建多层系统结构，利用外观对象作为每层入口，简化层间调用
+
+#### 优点
+
+* 简化了调用过程，无需了解深入子系统，防止带来风险
+* 减少系统依赖、松散耦合
+* 更好地划分访问层次
+* 符合迪米特法则，即最少知道原则
+
+#### 缺点
+
+* 增加子系统，扩展子系统行为容易引入风险
+* 不符合开闭原则
+
+#### 和外观模式相关的设计模式
+
+##### 外观模式和中介模式
+
+外观模式：关注外界和子系统的交互
+
+中介模式：子系统内部之间的交互
+
+##### 外观模式和单例模式
+
+通常把外观模式中的外观对象做成单例模式
+
+##### 外观模式和抽象工厂模式
+
+外观类可以通过抽象工厂获取子系统的实例
+
+### 10-2 外观模式coding
+
+计算机要想开机工作，需要CPU开机，硬盘开机。但是对于使用计算机的人来说，不需要知道CPU怎么开机，硬盘怎么开机，只需要知道计算机只有一个开机按钮，一按电脑就开机了。
+
+```java
+public class CPU {
+    public void open() {
+        System.out.println("open disk");
+    }
+
+    public void close() {
+        System.out.println("close disk");
+    }
+}
+public class Disk {
+    public void open() {
+        System.out.println("open disk");
+    }
+
+    public void close() {
+        System.out.println("close disk");
+    }
+}
+
+public class Computer {
+    private CPU cpu;
+    private Disk disk;
+
+    public Computer() {
+        this.cpu = new CPU();
+        this.disk = new Disk();
+    }
+
+    public void open() {
+        this.cpu.open();
+        this.disk.open();
+    }
+
+    public void close() {
+        this.cpu.close();
+        this.disk.close();
+    }
+}
+
+public class Test {
+    public static void main(String[] args) {
+        Computer computer = new Computer();
+        computer.open();
+        System.out.println("玩一会电脑");
+        computer.close();
+    }
+}
+```
+
+#### 适配器、代理、装饰、外观之间的区别
+
+##### 定义：
+
+* 适配器：把一个接口转换成客户期望的类型；
+* 代理：为一个对象提供一个替身或者占位符，以控制这个对象的访问；
+* 装饰：动态的给一个对象附加责任或者行为
+* 外观模式：提供一个统一的接口，用来访问子系统的一群接口。
+
+##### 功能上：
+
+* 适配器：让两个不同类型的接口合作
+* 代理：控制被代理对象的访问或延迟创建消耗大的对象的创建时机
+* 装饰：动态附加责任，通过委托|组合使模式，避免类中出现很多静态的不需要的代码功能
+* 外观：简化接口，更方便的访问子系统
+
+##### 实现上：
+
+* 适配器：创建class A 并实现客户期望的接口，A中拥有被适配者的接口类型引用（Has-a 关系），把接口功能委托给被适配者；适配者和被适配者属于不同的类型；
+* 代理：代理类和被代理类实现同一个接口，代理对象是被代理对象的替身，拥有被代理接口的对象引用(Has-a关系)；代理者和被代理者属于同一个类型；
+* 装饰：装饰者和被装饰者继承同一个子类，被装饰者也可以装饰其他装饰者，所以装饰者内部拥有一个基类的引用（Has-a）；装饰者和被装饰者属于同一个类型；
+* 外观：外观类会提供一个统一的接口，同时也会暴露子系统的接口，让那些需要使用子系统底层功能的客户端调用
+
+
+
+
+
+
+
