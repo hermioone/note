@@ -1226,6 +1226,252 @@ public class Test {
 * 装饰：装饰者和被装饰者继承同一个子类，被装饰者也可以装饰其他装饰者，所以装饰者内部拥有一个基类的引用（Has-a）；装饰者和被装饰者属于同一个类型；
 * 外观：外观类会提供一个统一的接口，同时也会暴露子系统的接口，让那些需要使用子系统底层功能的客户端调用
 
+## 第11章 装饰者模式
+
+### 11-1 装饰者模式讲解
+
+定义：在不改变原有对象的基础之上，将功能附加到功能上。
+
+提供了比继承更有弹性的替代方案（扩展原有对象功能）
+
+类型：结构型
+
+#### 适用场景
+
+* 扩展一个类的功能或给一个类添加附加职责
+* 动态地给一个对象添加功能，这些功能可以再动态地撤销
+
+#### 优点
+
+* 继承的有力补充，比继承灵活，不改变原有对象的情况下给一个对象扩展功能
+* 通过使用不同装饰类以及这些装饰类的排列组合，可以实现不同效果
+* 符合开闭原则
+
+#### 缺点
+
+* 会出现更多的代码，更多的类，增加程序复杂性
+* 动态装饰时，多层装饰时会更复杂
+
+#### 装饰者相关设计模式
+
+* 装饰者模式和代理模式
+  * 装饰者模式
+    * 关注在一个对象上动态添加方法
+    * 把原始对象作为一个**参数传给装饰者的构造器**
+  * 代理模式：
+    * 关注控制对对象的访问，代理模式中的代理类可以对客户隐藏一个对象的具体信息
+    * 在代理类中创建一个对象的实例（**成员变量**）
+* 装饰者模式和适配器模式
+  * 装饰者模式和适配器模式都可以叫做Wrapper
+  * 装饰者和被装饰者可以**实现相同的接口**或者装饰者是被装饰者的子类
+  * 适配器模式中，适配器和被适配的类**具有不同的接口**
+
+### 11-2 装饰者模式coding 
+
+![](http://static.zybuluo.com/vermouth9/rjx6m3lwbtiy7wpcoopel2sf/image.png)
+
+```java
+public abstract class ABattercake {
+    protected abstract String getDescription();
+    protected abstract int getPrice();
+}
+
+public abstract class AbstractorDecorator extends ABattercake {
+
+    private ABattercake aBattercake;
+
+    public AbstractorDecorator(ABattercake aBattercake) {
+        this.aBattercake = aBattercake;
+    }
+
+    @Override
+    protected String getDescription() {
+        return aBattercake.getDescription();
+    }
+
+    @Override
+    protected int getPrice() {
+        return aBattercake.getPrice();
+    }
+    
+//    protected abstract void doSomething();   根据具体业务场景决定有没有这个抽象方法
+}
+
+public class EggDecorator extends AbstractorDecorator {
+
+    public EggDecorator(ABattercake aBattercake) {
+        super(aBattercake);
+    }
+
+    @Override
+    protected String getDescription() {
+        return super.getDescription() + " 加一个鸡蛋";
+    }
+
+    @Override
+    protected int getPrice() {
+        return super.getPrice() + 1;
+    }
+}
+
+public class SausageDecorator extends AbstractorDecorator {
+    public SausageDecorator(ABattercake aBattercake) {
+        super(aBattercake);
+    }
+
+    @Override
+    protected String getDescription() {
+        return super.getDescription() + " 加一根香肠";
+    }
+
+    @Override
+    protected int getPrice() {
+        return super.getPrice() + 2;
+    }
+}
+
+public class Test {
+    public static void main(String[] args) {
+        ABattercake aBattercake = new Battercake();
+        aBattercake = new EggDecorator(aBattercake);
+        aBattercake = new EggDecorator(aBattercake);
+        aBattercake = new SausageDecorator(aBattercake);
+        System.out.println(aBattercake.getDescription() + ": " + aBattercake.getPrice());
+    }
+}
+```
+
+### 11-3 装饰者模式源码解析
+
+Java IO中的类
+
+```java
+public class BufferedReader extends Reader {
+
+    private Reader in;
+
+    public BufferedReader(Reader in, int sz) {
+        super(in);
+        this.in = in;
+    }
+}
+```
+
+## 第12章 适配器模式
+
+### 12-1 适配器模式讲解
+
+定义：将一个类的接口转换成客户期望的另一个接口
+
+使原本接口不兼容的类可以一起工作
+
+类型：结构型
+
+#### 适用场景
+
+* 已经存在的类，它的方法和需求不匹配时（方法结果相同或相似）
+* 不是软件设计阶段考虑的设计模式，是随着软件维护，由于不同产品、不同厂家造成功能类似而接口不相同情况下的解决方案
+
+#### 优点
+
+* 提高类的透明性和复用，现有的类复用但不需要改变
+* 目标类和适配器类解耦，提高程序扩展性
+* 符合开闭原则
+
+#### 缺点
+
+* 适配器编写过程需要全面考虑，可能会增加系统的复杂性
+* 增加系统代码可读的难度
+
+#### 扩展
+
+* 对象适配器
+* 类适配器
+
+#### 适配器相关设计模式
+
+* 适配器模式和外观模式
+  * 外观模式
+    * 定义了新的接口
+    * 现有的系统中提供一个更为方便的访问入口
+  * 适配器模式
+    * 复用了原有的接口
+    * 使原来已有的两个接口协同工作
+
+### 12-2 适配器模式coding
+
+#### 类适配器
+
+![](http://static.zybuluo.com/vermouth9/sp6fyctubs7myq2ss8k7z3si/image.png)
+
+通过**继承**获取被适配者的一些方法。
+
+```java
+public class Adaptee {
+    public void adapteeRequest() {
+        System.out.println("被适配者的方法");
+    }
+}
+
+public interface Target {
+    void request();
+}
+
+public class Adapter extends Adaptee implements Target {
+    @Override
+    public void request() {
+        super.adapteeRequest();
+    }
+}
+
+public class ConcreteTarget implements Target {
+    @Override
+    public void request() {
+        System.out.println("concreteTarget目标方法");
+    }
+}
+```
+
+#### 对象适配器
+
+![](http://static.zybuluo.com/vermouth9/jm7fxk7qy1rvon820g6kfa1j/image.png)
+
+通过**组合**来获取被适配者的方法
+
+```java
+public class Adaptee {
+    public void adapteeRequest() {
+        System.out.println("被适配者的方法");
+    }
+}
+
+
+public interface Target {
+    void request();
+}
+
+public class Adapter implements Target {
+
+    private Adaptee adaptee = new Adaptee();
+
+    @Override
+    public void request() {
+        adaptee.adapteeRequest();
+    }
+}
+
+public class ConcreteTarget implements Target {
+    @Override
+    public void request() {
+        System.out.println("concreteTarget目标方法");
+    }
+}
+```
+
+### 12-3 适配器模式源码解析
+
+
+
 
 
 
