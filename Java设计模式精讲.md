@@ -1470,6 +1470,399 @@ public class ConcreteTarget implements Target {
 
 ### 12-3 适配器模式源码解析
 
+## 第13章 享元模式
+
+### 13-1 享元模式讲解
+
+定义：提供了减少对象数量从而改善应用所需的对象结构的方式
+
+运用共享技术有效地支持大量细粒度的对象
+
+类型：结构型
+
+#### 适用场景
+
+* 应用与系统底层的开发，以便解决系统的性能问题（String，数据库连接池）
+* 系统有大量相似对象，需要缓冲池的场景
+
+#### 优点
+
+* 减少对象的创建，降低内存中对象的数量
+* 减少内存之外的其他资源占用
+
+#### 缺点
+
+* 关注内部、外部状态，关注线程安全问题
+* 使系统、程序的逻辑复杂化
+
+#### 扩展
+
+* 内部状态：在享元对象的内部，并且不会随着环境改变而改变的共享部分
+* 外部状态：随着环境改变而改变的部分
+
+比如画圆形，此时圆形的半径就是外部状态，但是π就是内部状态。
+
+#### 享元模式相关的设计模式
+
+* 享元模式和单例模式
+  * 容器单例就是享元模式和单例模式的一个结合。
+
+### 13-2 享元模式coding
+
+```java
+public interface Employee {
+    void report();
+}
+
+public class Manager implements Employee {
+    private String department;             // 外部状态
+    private String reportContent;
+    private String title = "部门经理";      // 内部状态
+
+    public Manager(String department) {
+        this.department = department;
+    }
+    @Override
+    public void report() { System.out.println(reportContent); }
+    public void setReportContent(String reportContent) { this.reportContent = reportContent; }
+}
+
+public class EmployeeFactory {
+    private EmployeeFactory() {}
+    private static final Map<String, Employee> EMPLOYEE_MAP = new HashMap<>();
+
+    public static Employee getManager(String department) {
+        Manager manager = (Manager) EMPLOYEE_MAP.get(department);
+        if (manager == null) {
+            manager = new Manager(department);
+            System.out.println("创建部门经理：" + department);
+
+            manager.setReportContent(department + "部门汇报");
+            System.out.println("创建报告");
+
+            EMPLOYEE_MAP.put(department, manager);
+        }
+        return manager;
+    }
+}
+```
+
+### 13-3 享元模式源码解析
+
+jdk中的```Integer```类
+
+```java
+public final class Integer extends Number implements Comparable<Integer> {
+    public static Integer valueOf(int i) {
+        if (i >= IntegerCache.low && i <= IntegerCache.high)
+            return IntegerCache.cache[i + (-IntegerCache.low)];
+        return new Integer(i);
+    }
+    
+    private static class IntegerCache {
+        static final int low = -128;
+        static final int high;
+        static final Integer cache[];
+
+        static {
+            // high value may be configured by property
+            int h = 127;
+            String integerCacheHighPropValue =
+                sun.misc.VM.getSavedProperty("java.lang.Integer.IntegerCache.high");
+            if (integerCacheHighPropValue != null) {
+                try {
+                    int i = parseInt(integerCacheHighPropValue);
+                    i = Math.max(i, 127);
+                    // Maximum array size is Integer.MAX_VALUE
+                    h = Math.min(i, Integer.MAX_VALUE - (-low) -1);
+                } catch( NumberFormatException nfe) {
+                    // If the property cannot be parsed into an int, ignore it.
+                }
+            }
+            high = h;
+        }
+
+        private IntegerCache() {}
+    }
+}
+
+Integer a = Integer.valueOf(100);
+Integer b = 100;
+Integer c = Integer.valueOf(1000);
+Integer d = 1000;
+System.out.println(a == b);			// true
+System.out.println(c == d);			// false
+```
+
+> IntegerCache.low == -128; IntegerCache.high == 127
+>
+> IntegerCache.high的值可以修改
+
+## 第14章 组合模式
+
+### 14-1 组合模式讲解
+
+定义：将对象组合成树形结构以表示“部分-整体”的层次结构
+
+组合模式使客户端对单个对象和组合对象保持一致的方式处理
+
+类型：结构型
+
+#### 适用场景
+
+* 希望客户端可以忽略组合对象与单个对象的差异时
+* 处理一个树形结构时
+
+#### 优点
+
+* 清楚地定义分层次的复杂对象，表示对象的全部或部分层次
+* 让客户端忽略了层次的差异，方便对整个层次结构进行控制
+* 简化客户端代码
+* 符合开闭原则
+
+#### 缺点
+
+* 限制类型时会较为复杂
+* 使设计变得更加抽象
+
+### 14-2 组合模式coding
+
+![](http://static.zybuluo.com/vermouth9/8mc6qzqpj3v8viq8n3nnby1d/%E6%8D%95%E8%8E%B7.PNG)
+
+```java
+public abstract class CatalogComponent {
+    public void add(CatalogComponent catalogComponent) {
+        throw new UnsupportedOperationException("不支持添加操作");
+    }
+    public void remove(CatalogComponent catalogComponent) {
+        throw new UnsupportedOperationException("不支持删除操作");
+    }
+    public String getName(CatalogComponent catalogComponent) {
+        throw new UnsupportedOperationException("不支持获取名称操作");
+    }
+    public double getPrice(CatalogComponent catalogComponent) {
+        throw new UnsupportedOperationException("不支持获取价格操作");
+    }
+    public void print() {
+        throw new UnsupportedOperationException("不支持打印操作");
+    }
+}
+
+public class Course extends CatalogComponent {
+    private String name;
+    private double price;
+
+    public Course(String name, double price) {
+        this.name = name;
+        this.price = price;
+    }
+
+    @Override
+    public String getName(CatalogComponent catalogComponent) { return this.name; }
+
+    @Override
+    public double getPrice(CatalogComponent catalogComponent) { return price; }
+
+    @Override
+    public void print() {
+        System.out.println("Course name: " + name + ", Course price: " + price);
+    }
+}
+
+public class CourseCatalog extends CatalogComponent {
+    private List<CatalogComponent> items = new ArrayList<>();
+    private String name;
+    private Integer level;
+
+    public CourseCatalog(String name, Integer level) {
+        this.name = name;
+        this.level = level;
+    }
+
+    @Override
+    public void add(CatalogComponent catalogComponent) { items.add(catalogComponent); }
+
+    @Override
+    public void remove(CatalogComponent catalogComponent) { items.remove(catalogComponent); }
+
+    @Override
+    public void print() {
+        System.out.println(this.name + "下：");
+        for (CatalogComponent catalogComponent : items) {
+            if (this.level != null) {
+                for (int i = 0; i < this.level; i++) {
+                    System.out.print("\t");
+                }
+            }
+            catalogComponent.print();
+        }
+    }
+
+    @Override
+    public String getName(CatalogComponent catalogComponent) { return this.name; }
+}
+
+public class Test {
+    public static void main(String[] args) {
+        CatalogComponent root = new CourseCatalog("课程目录", 1);
+        CatalogComponent sbDir = new CourseCatalog("Spring Boot目录", 2);
+        CatalogComponent jsDir = new CourseCatalog("JavaScript目录", 2);
+        CatalogComponent sbCour1 = new Course("Spring Boot入门", 10);
+        CatalogComponent sbCour2 = new Course("Spring Boot进阶", 20);
+        CatalogComponent jsCour1 = new Course("JavaScript课程", 10);
+        CatalogComponent vueDir = new CourseCatalog("Vue课程目录", 3);
+        CatalogComponent vueCour1 = new Course("Vue入门", 10);
+        CatalogComponent vueCour2 = new Course("Vue进阶", 10);
+        CatalogComponent jsCour3 = new Course("NodeJS课程", 10);
+        CatalogComponent aiCour = new Course("ai课程", 100);
+
+        root.add(sbDir);
+        root.add(jsDir);
+        root.add(aiCour);
+        sbDir.add(sbCour1);
+        sbDir.add(sbCour2);
+        jsDir.add(jsCour1);
+        jsDir.add(vueDir);
+        jsDir.add(jsCour3);
+
+        vueDir.add(vueCour1);
+        vueDir.add(vueCour2);
+
+        root.print();
+    }
+}
+
+/*
+ * 课程目录下：
+ * 	Spring Boot目录下：
+ * 		Course name: Spring Boot入门, Course price: 10.0
+ * 		Course name: Spring Boot进阶, Course price: 20.0
+ * 	JavaScript目录下：
+ * 		Course name: JavaScript课程, Course price: 10.0
+ * 		Vue课程目录下：
+ * 			Course name: Vue入门, Course price: 10.0
+ * 			Course name: Vue进阶, Course price: 10.0
+ * 		Course name: NodeJS课程, Course price: 10.0
+ * 	Course name: ai课程, Course price: 100.0
+ */
+```
+
+### 14-3 组合模式源码解析
+
+![](http://static.zybuluo.com/vermouth9/i6mzck2rckc98f6j525ikq4v/image.png)
+
+## 第15章 桥接模式
+
+### 15-1 桥接模式讲解
+
+定义：将抽象部分与具体实现部分分离，使它们都可以独立地变化
+
+通过组合的方式建立两个类之间联系，而不是继承
+
+类型：结构型
+
+#### 适用场景
+
+* 抽象和具体实现之间增加更多的灵活性
+* 一个类存在两个或多个独立变化的维度，且这多个维度都需要独立进行扩展
+* 不希望使用继承，或因为多层继承导致系统类的个数剧增
+
+#### 优点
+
+* 分离抽象部分及其具体实现部分
+* 提高了系统的可扩展性
+* 符合合成复用原则
+
+#### 缺点
+
+* 增加了系统的理解与设计难度
+* 需要正确地识别出系统中两个独立变化的维度
+
+#### 桥接模式相关设计模式
+
+* 桥接模式和组合模式
+  * 组合模式更强调部分和整体间的组合
+  * 桥接模式强调平行类间的组合
+* 桥接模式和适配器模式
+  * 共同点：为了让两个类配合工作
+  * 不同点
+    * 适配器模式：改变已有类的接口
+    * 桥接模式：分离抽象和具体的实现
+
+### 15-2 桥接模式coding
+
+这是两个独立的继承体系。
+
+![](http://static.zybuluo.com/vermouth9/t1s9hj18kb5b4m11ybpmahnd/image.png)
+
+```java
+public interface Account {
+    void openAccount();
+    void showAccountType();
+}
+
+public abstract class Bank {
+    protected Account account;
+
+    public Bank(Account account) {
+        this.account = account;
+    }
+
+    public abstract Account openAccount();
+}
+
+public class DepositAccount implements Account {
+    @Override
+    public void openAccount() {
+        System.out.println("打开定期账号");
+    }
+
+    @Override
+    public void showAccountType() {
+        System.out.println("这是一个定期账号");
+    }
+}
+
+public class SavingAccount implements Account {
+    @Override
+    public void openAccount() {
+        System.out.println("打开活期账号");
+    }
+
+    @Override
+    public void showAccountType() {
+        System.out.println("这是一个活期账号");
+    }
+}
+
+public class ABCBank extends Bank {
+    public ABCBank(Account account) {
+        super(account);
+    }
+
+    @Override
+    public Account openAccount() {
+        System.out.println("打开中国农业银行账号");
+        account.openAccount();
+        return account;
+    }
+}
+
+public class ICBCBank extends Bank {
+    public ICBCBank(Account account) {
+        super(account);
+    }
+
+    @Override
+    public Account openAccount() {
+        System.out.println("打开工商银行账号");
+        return account;
+    }
+}
+```
+
+
+
 
 
 
