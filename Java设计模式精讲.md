@@ -636,7 +636,7 @@ public interface Connection  extends Wrapper, AutoCloseable {
 * 如果一个对象有非常复杂的内部结构（很多属性）
 * 想把复杂对象的创建和使用分离
 
-比如做一盘番茄炒蛋，必需的步骤有炒鸡蛋，炒西红柿，加盐，但是每个人做这些步骤的顺序可能不同。
+比如做一盘番茄炒蛋，必需的步骤有炒鸡蛋，炒西红柿，加盐，但是每个人在每一个步骤的做法不同。
 
 #### 优点
 
@@ -648,13 +648,19 @@ public interface Connection  extends Wrapper, AutoCloseable {
 * 产生多余的Builder对象
 * 产品内部发生变化，建造者都要修改，成本较大
 
-#### 建造者模式和工厂模式的区别
+#### 和建造者模式相关的设计模式
 
-* 建造者模式注重方法的调用顺序，工厂模式注重创建产品
-* 建造者模式可以创建一些复杂的产品，由各种复杂的构件组成；而工厂模式创建出来的都是一个样子
-* 工厂模式只要把对象创建出来就okay了，而建造者模式不止要创建出产品，还要知道产品是由哪些部件组成的。
+* 建造者模式和工厂方法模式
+  * 这两个模式可以组合使用。生成器模式的Builder实现中，通常需要选择具体的部件实现，一个可行的方案就是实现成为工厂方法，通过工厂方法来获取具体的部件对象，然后再进行部件的装配。
+* 建造者模式和抽象工厂模式
+  * 相同点
+    * 如果在实现Builder的时候，只有创建对象的功能，而没有组装的功能，那么这个时候的Builder实现和抽象工厂的实现是类似的
+  * 不同点
+    * 抽象工厂模式的目的是创建产品簇，这个产品簇里面的单个产品就相当于是构成一个复杂对象的部件对象，抽象工厂对象创建完成后就立即返回整个产品簇
+    * 建造者模式的目的是按照构造算法， 一步一步来创建一个复杂的产品对象，通常要等到整个构建过程结束后，才会得到最终的产品对象
+  * 这两个模式可以组合使用，在建造者模式的Builder实现中，需要创建各个部件对象，而这些部件对象是有关联的，也就是说Builder实现中需要获取构成一个复杂对象的产品簇。这样一来，由抽象工厂模式复杂部件对象的创建，Builder实现里面则主要负责产品对象整体的构建。
 
-> 建造者模式适用于产生差异化的产品，产品由
+> 建造者模式重心在于分离构建算法和具体的构造实现，从而使得构建算法可以重用，具体的构造实现可以很方便扩展和切换。
 
 ### 7-2 建造者coding
 
@@ -702,7 +708,7 @@ public class Computer {
 }
 
 @Data
-public class Boss {
+public class Director {
     private Builder builder;
 
     public Computer createComputer(String cpu,
@@ -724,7 +730,14 @@ public class Boss {
 }
 ```
 
-建造者模式中```Boss```这个类不是必须的，它的作用不是建造产品，而是指挥建造产品的顺序或者产品包含哪些组件。但是这种方式
+特别注意，建造者模式分成两个很重要的部分
+
+* Builder接口。这里定义了如何构建各个部件，也就是知道每个部件功能如何实现，以及如何装配这些部件到产品中去
+* Director。Director是知道如何组合来构建产品，也就是说Director负责整体的构建算法，而且通常是分步骤地来执行
+
+**但是Director部分可以和客户端融合在一起**，让客户端直接去操作Builder。
+
+![](http://petfhoepw.bkt.clouddn.com/Snipaste_2018-09-12_09-36-39.png)
 
 ```java
 @Data
@@ -736,7 +749,7 @@ public class Computer {
     private String power;
     private String memory;
 
-    public Computer(ComputerBuilder computerBuilder) {
+    private Computer(ComputerBuilder computerBuilder) {
         this.cpu = computerBuilder.cpu;
         this.mainBoard = computerBuilder.mainBoard;
         this.hardDisk = computerBuilder.hardDisk;
@@ -752,15 +765,10 @@ public class Computer {
         private String displayCard;
         private String power;
         private String memory;
-
-        public ComputerBuilder buildCPU(String cpu) {
+        
+        public ComputerBuilder(String cpu, String mainBoard) {
             this.cpu = cpu;
-            return this;
-        }
-
-        public ComputerBuilder buildMaindBoard(String mainBoard) {
             this.mainBoard = mainBoard;
-            return this;
         }
 
         public ComputerBuilder buildhardDist(String hardDisk) {
@@ -792,13 +800,15 @@ public class Computer {
 
 public class Boss {
     public static Computer createComputer() {
-        return (new Computer.ComputerBuilder())
-                .buildCPU("i9")
-                .buildDisplayCard("1080Ti")
+        return (new Computer.ComputerBuilder("i9", "1080Ti"))
                 .build();
     }
 }
 ```
+
+在ComputerBuilder的构造函数中填入必填组件，其他选填组件可以通过类setter方法传入。
+
+同时可以在ComputerBuilder的每个类setter方法中添加单个组件的数据约束规则校验（比如字符串长度），在```build()```方法中创建对象之前，对所有的数据进行约束规则校验（涉及到几个数据之间的约束规则，比如start_date 必须小于 end_date）。
 
 ### 7-3 建造者模式源码解析
 
