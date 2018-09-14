@@ -7,7 +7,10 @@ LogBack的配置大概包括3部分：appender, logger和root。
 XML代码：
 
 ```xml
-`<configuration scan=``"true"` `scanPeriod=``"60 second"` `debug=``"false"``>  ``      ``<contextName>myAppName</contextName>  ``      ``<!-- 其他配置省略-->  ``</configuration>`
+<configuration scan="true" scanPeriod="60 second" debug="false">   			
+    <contextName>myAppName</contextName>
+    <!-- 其他配置省略-->
+</configuration>
 ```
 
 #### 设置变量 ```<property>```
@@ -17,7 +20,11 @@ XML代码：
 例如使用```<property>```定义上下文名称，然后在```<contentName>```设置logger上下文时使用。
 
 ```xml
-`<configuration scan=``"true"` `scanPeriod=``"60 second"` `debug=``"false"``>  ``      ``<property name=``"APP_Name"` `value=``"myAppName"` `/>   ``      ``<contextName>${APP_Name}</contextName>  ``      ``<!-- 其他配置省略-->  ``</configuration>`
+<configuration scan="true" scanPeriod="60 second" debug="false">
+    <property name="APP_Name" value="myAppName"/>     
+    <contextName>${APP_Name}</contextName> 
+    <!-- 其他配置省略-->  
+</configuration>
 ```
 
 #### 获取时间戳字符串``` <timestamp>```
@@ -27,7 +34,11 @@ XML代码：
 例如将解析配置文件的时间作为上下文名称：
 
 ```xml
-`<configuration scan=``"true"` `scanPeriod=``"60 second"` `debug=``"false"``>  ``      ``<timestamp key=``"bySecond"` `datePattern=``"yyyyMMdd'T'HHmmss"``/>   ``      ``<contextName>${bySecond}</contextName>  ``      ``<!-- 其他配置省略-->  ``</configuration>`
+<configuration scan="true" scanPeriod="60 second" debug="false">       
+    <timestamp key="bySecond" datePattern="yyyyMMdd'T'HHmmss"/>        
+    <contextName>${bySecond}</contextName>
+    <!-- 其他配置省略-->
+</configuration>`
 ```
 
 #### 设置logger和root
@@ -54,7 +65,19 @@ XML代码：
 首先，Java类如下：
 
 ```java
-`package` `logback;  ` `import` `org.slf4j.Logger;  ``import` `org.slf4j.LoggerFactory;  ` `public` `class` `LogbackDemo {  ``    ``private` `static` `Logger log = LoggerFactory.getLogger(LogbackDemo.``class``);  ``    ``public` `static` `void` `main(String[] args) {  ``        ``log.trace(``"======trace"``);  ``        ``log.debug(``"======debug"``);  ``        ``log.info(``"======info"``);  ``        ``log.warn(``"======warn"``);  ``        ``log.error(``"======error"``);  ``    ``}  ``}`
+package logback;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+public class LogbackDemo {
+    private static Logger log = LoggerFactory.getLogger(LogbackDemo.class);
+    public static void main(String[] args) {
+        log.trace("======trace");
+        log.debug("======debug");
+        log.info("======info");
+        log.warn("======warn");
+        log.error("======error");
+    }
+}
 ```
 
 logback.xml配置文件
@@ -62,7 +85,16 @@ logback.xml配置文件
 ##### 只配置root
 
 ```xml
-`<configuration>   ` `  ``<appender name=``"STDOUT"` `class``=``"ch.qos.logback.core.ConsoleAppender"``>   ``    ``<!-- encoder 默认配置为PatternLayoutEncoder -->   ``    ``<encoder>   ``      ``<pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{``36``} - %msg%n</pattern>   ``    ``</encoder>   ``  ``</appender>   ` `  ``<root level=``"INFO"``>             ``    ``<appender-ref ref=``"STDOUT"` `/>   ``  ``</root>     ` ` ``</configuration>`
+<configuration>
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <!-- encoder 默认配置为PatternLayoutEncoder -->
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>			</encoder>
+    </appender>
+    <root level="INFO">
+        <appender-ref ref="STDOUT"/>
+    </root>
+</configuration>
 ```
 
 其中appender的配置表示打印到控制台(稍后详细讲解appender )。```<root level="INFO">```将root的打印级别设置为“INFO”，指定了名字为“STDOUT”的appender。
@@ -72,20 +104,36 @@ logback.xml配置文件
 输出结果：
 
 ```shell
-`13``:``30``:``38.484` `[main] INFO  logback.LogbackDemo - ======info  ``13``:``30``:``38.500` `[main] WARN  logback.LogbackDemo - ======warn  ``13``:``30``:``38.500` `[main] ERROR logback.LogbackDemo - ======error`
+[main] INFO  logback.LogbackDemo - ======info
+[main] WARN  logback.LogbackDemo - ======warn
+[main] ERROR logback.LogbackDemo - ======error`
 ```
 
 ##### 带有logger的配置，不指定级别，不指定appender
 
 ```xml
-`<configuration>   ` `  ``<appender name=``"STDOUT"` `class``=``"ch.qos.logback.core.ConsoleAppender"``>   ``    ``<!-- encoder 默认配置为PatternLayoutEncoder -->   ``    ``<encoder>   ``      ``<pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{``36``} - %msg%n</pattern>   ``    ``</encoder>   ``  ``</appender>   ` `  ``<!-- logback为java中的包 -->   ``  ``<logger name=``"logback"``/>   ` `  ``<root level=``"DEBUG"``>             ``    ``<appender-ref ref=``"STDOUT"` `/>   ``  ``</root>     ` ` ``</configuration>`
+<configuration>
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <!-- encoder 默认配置为PatternLayoutEncoder -->
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>			</encoder>
+    </appender>
+    <!-- logback为java中的包 -->
+    <logger name="logback"/>
+    <root level="DEBUG">
+        <appender-ref ref="STDOUT"/>
+    </root>
+</configuration>`
 ```
 
 其中appender的配置表示打印到控制台。
 输出结果：
 
 ```shell
-`13``:``19``:``15.406` `[main] DEBUG logback.LogbackDemo - ======debug  ``13``:``19``:``15.406` `[main] INFO  logback.LogbackDemo - ======info  ``13``:``19``:``15.406` `[main] WARN  logback.LogbackDemo - ======warn  ``13``:``19``:``15.406` `[main] ERROR logback.LogbackDemo - ======error`
+[main] DEBUG logback.LogbackDemo - ======debug
+[main] INFO  logback.LogbackDemo - ======info
+[main] WARN  logback.LogbackDemo - ======warn
+[main] ERROR logback.LogbackDemo - ======error`
 ```
 
 ```<logger name="logback" />```将控制logback包下的所有类的日志的打印，但是并没有设置打印级别，所以继承他的上级```<root>```的日志级别“DEBUG”。
@@ -103,13 +151,31 @@ root接到下级传递的信息，交给已经配置好的名为“STDOUT”的a
 ##### 带有多个logger的配置，指定级别，指定appender
 
 ```xml
-`<configuration>   ``   ``<appender name=``"STDOUT"` `class``=``"ch.qos.logback.core.ConsoleAppender"``>   ``    ``<!-- encoder 默认配置为PatternLayoutEncoder -->   ``    ``<encoder>   ``      ``<pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{``36``} - %msg%n</pattern>   ``    ``</encoder>   ``  ``</appender>   ` `  ``<!-- logback为java中的包 -->   ``  ``<logger name=``"logback"``/>   ``  ``<!--logback.LogbackDemo：类的全路径 -->   ``  ``<logger name=``"logback.LogbackDemo"` `level=``"INFO"` `additivity=``"false"``>  ``    ``<appender-ref ref=``"STDOUT"``/>  ``  ``</logger>   ` `  ``<root level=``"ERROR"``>             ``    ``<appender-ref ref=``"STDOUT"` `/>   ``  ``</root>     ``</configuration>`
+<configuration>
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <!-- encoder 默认配置为PatternLayoutEncoder -->
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+    <!-- logback为java中的包 -->
+    <logger name="logback"/>
+    <!--logback.LogbackDemo：类的全路径 -->
+    <logger name="logback.LogbackDemo" level="INFO" additivity="false"> 
+        <appender-ref ref="STDOUT"/>
+    </logger>
+    <root level="ERROR">
+        <appender-ref ref="STDOUT"/>
+    </root>
+</configuration>`
 ```
 
 输出结果：
 
 ```shell
-`14``:``05``:``35.937` `[main] INFO  logback.LogbackDemo - ======info  ``14``:``05``:``35.937` `[main] WARN  logback.LogbackDemo - ======warn  ``14``:``05``:``35.937` `[main] ERROR logback.LogbackDemo - ======error`
+[main] INFO  logback.LogbackDemo - ======info
+[main] WARN  logback.LogbackDemo - ======warn
+[main] ERROR logback.LogbackDemo - ======error`
 ```
 
 ```<logger name="logback" />```将控制logback包下的所有类的日志的打印，但是并没用设置打印级别，所以继承他的上级```<root>```的日志级别“ERROR”。
@@ -131,7 +197,12 @@ additivity属性为false，表示此logger的打印信息不再向上级传递�
 没错，日志打印了两次，想必大家都知道原因了，因为打印信息向上级传递，logger本身打印一次，root接到后又打印一次：
 
 ```shell
-`14``:``09``:``01.531` `[main] INFO  logback.LogbackDemo - ======info  ``14``:``09``:``01.531` `[main] INFO  logback.LogbackDemo - ======info  ``14``:``09``:``01.531` `[main] WARN  logback.LogbackDemo - ======warn  ``14``:``09``:``01.531` `[main] WARN  logback.LogbackDemo - ======warn  ``14``:``09``:``01.531` `[main] ERROR logback.LogbackDemo - ======error  ``14``:``09``:``01.531` `[main] ERROR logback.LogbackDemo - ======error`
+[main] INFO  logback.LogbackDemo - ======info
+[main] INFO  logback.LogbackDemo - ======info
+[main] WARN  logback.LogbackDemo - ======warn
+[main] WARN  logback.LogbackDemo - ======warn
+[main] ERROR logback.LogbackDemo - ======error
+[main] ERROR logback.LogbackDemo - ======error
 ```
 
 ### **```<appender>```详解**
@@ -146,7 +217,16 @@ additivity属性为false，表示此logger的打印信息不再向上级传递�
 - ```<target>```：字符串 System.out 或者 System.err ，默认 System.out .
 
 ```xml
-`<configuration>  ``  ``<appender name=``"STDOUT"` `class``=``"ch.qos.logback.core.ConsoleAppender"``>  ``    ``<encoder>  ``      ``<pattern>%-4relative [%thread] %-5level %logger{``35``} - %msg %n</pattern>  ``    ``</encoder>  ``  ``</appender>  ` `  ``<root level=``"DEBUG"``>  ``    ``<appender-ref ref=``"STDOUT"` `/>  ``  ``</root>  ``</configuration>`
+<configuration>
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%-4relative [%thread] %-5level %logger{35} - %msg %n</pattern>
+        </encoder>
+    </appender>
+    <root level="DEBUG">
+        <appender-ref ref="STDOUT"/>
+    </root>
+</configuration>
 ```
 
 #### FileAppender
@@ -159,7 +239,18 @@ additivity属性为false，表示此logger的打印信息不再向上级传递�
 - ```<prudent>```：如果是 true，日志会被安全的写入文件，即使其他的FileAppender也在向此文件做写入操作，效率低，默认是 false。
 
 ```xml
-`<configuration>  ``  ``<appender name=``"FILE"` `class``=``"ch.qos.logback.core.FileAppender"``>  ``    ``<file>testFile.log</file>  ``    ``<append>``true``</append>  ``    ``<encoder>  ``      ``<pattern>%-4relative [%thread] %-5level %logger{``35``} - %msg%n</pattern>  ``    ``</encoder>  ``  ``</appender>  ` `  ``<root level=``"DEBUG"``>  ``    ``<appender-ref ref=``"FILE"` `/>  ``  ``</root>  ``</configuration>`
+<configuration>
+    <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+        <file>testFile.log</file>
+        <append>true</append>
+        <encoder>
+            <pattern>%-4relative [%thread] %-5level %logger{35} - %msg%n</pattern>
+        </encoder>
+    </appender>
+    <root level="DEBUG">
+        <appender-ref ref="FILE"/>
+    </root>
+</configuration>
 ```
 
 #### RollingFIleAppender
@@ -198,13 +289,44 @@ additivity属性为false，表示此logger的打印信息不再向上级传递�
 例如：每天生产一个日志文件，保存30天的日志文件
 
 ```xml
-`<configuration>   ``  ``<appender name=``"FILE"` `class``=``"ch.qos.logback.core.rolling.RollingFileAppender"``>   ` `    ``<rollingPolicy ``class``=``"ch.qos.logback.core.rolling.TimeBasedRollingPolicy"``>   ``      ``<fileNamePattern>logFile.%d{yyyy-MM-dd}.log</fileNamePattern>   ``      ``<maxHistory>``30``</maxHistory>    ``    ``</rollingPolicy>   ` `    ``<encoder>   ``      ``<pattern>%-4relative [%thread] %-5level %logger{``35``} - %msg%n</pattern>   ``    ``</encoder>   ``  ``</appender>    ` `  ``<root level=``"DEBUG"``>   ``    ``<appender-ref ref=``"FILE"` `/>   ``  ``</root>   ``</configuration>`
+<configuration>
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>logFile.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%-4relative [%thread] %-5level %logger{35} - %msg%n</pattern>
+        </encoder>
+    </appender>
+    <root level="DEBUG">
+        <appender-ref ref="FILE"/>
+    </root>
+</configuration>
 ```
 
 又例如：按照固定窗口模式生成日志文件，当文件大于20MB时，生成新的日志文件。窗口大小是1到3，当保存了3个归档文件后，将覆盖最早的日志。
 
 ```xml
-`<configuration>   ``  ``<appender name=``"FILE"` `class``=``"ch.qos.logback.core.rolling.RollingFileAppender"``>   ``    ``<file>test.log</file>   ` `    ``<rollingPolicy ``class``=``"ch.qos.logback.core.rolling.FixedWindowRollingPolicy"``>   ``      ``<fileNamePattern>tests.%i.log.zip</fileNamePattern>   ``      ``<minIndex>``1``</minIndex>   ``      ``<maxIndex>``3``</maxIndex>   ``    ``</rollingPolicy>   ` `    ``<triggeringPolicy ``class``=``"ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy"``>   ``      ``<maxFileSize>5MB</maxFileSize>   ``    ``</triggeringPolicy>   ``    ``<encoder>   ``      ``<pattern>%-4relative [%thread] %-5level %logger{``35``} - %msg%n</pattern>   ``    ``</encoder>   ``  ``</appender>   ` `  ``<root level=``"DEBUG"``>   ``    ``<appender-ref ref=``"FILE"` `/>   ``  ``</root>   ``</configuration>`
+<configuration>
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>test.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
+            <fileNamePattern>tests.%i.log.zip</fileNamePattern>
+            <minIndex>1</minIndex>
+            <maxIndex>3</maxIndex>
+        </rollingPolicy>
+        <triggeringPolicy class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy">
+            <maxFileSize>5MB</maxFileSize>
+        </triggeringPolicy>
+        <encoder>
+            <pattern>%-4relative [%thread] %-5level %logger{35} - %msg%n</pattern>
+        </encoder>
+    </appender>
+    <root level="DEBUG">
+        <appender-ref ref="FILE"/>
+    </root>
+</configuration>
 ```
 
 另外还有SocketAppender、SMTPAppender、DBAppender、SyslogAppender、SiftingAppender，并不常用，这些就不在这里讲解了，大家可以参考官方文档。当然大家可以编写自己的Appender。
@@ -216,7 +338,9 @@ additivity属性为false，表示此logger的打印信息不再向上级传递�
 例如：
 
 ```xml
-`<encoder>   ``   ``<pattern>%-4relative [%thread] %-5level %logger{``35``} - %msg%n</pattern>   ``</encoder>`
+<encoder>
+    <pattern>%-4relative [%thread] %-5level %logger{35} - %msg%n</pattern>
+</encoder>
 ```
 
 格式修饰符，与转换符共同使用：
@@ -231,5 +355,161 @@ additivity属性为false，表示此logger的打印信息不再向上级传递�
 最后附上相对比较完整的，涵盖大部分配置的案例，案例中有解析。
 
 ```xml
-`<?xml version=``"1.0"` `encoding=``"UTF-8"``?>``<!--``-scan:当此属性设置为``true``时，配置文件如果发生改变，将会被重新加载，默认值为``true``-scanPeriod:设置监测配置文件是否有修改的时间间隔，如果没有给出时间单位，默认单位是毫秒。``-           当scan为``true``时，此属性生效。默认的时间间隔为``1``分钟``-debug:当此属性设置为``true``时，将打印出logback内部日志信息，实时查看logback运行状态。默认值为``false``。``-``- configuration 子节点为 appender、logger、root``-->``<configuration scan=``"true"` `scanPeriod=``"60 second"` `debug=``"false"``>` `    ``<!-- 负责写日志,控制台日志 -->``    ``<appender name=``"STDOUT"` `class``=``"ch.qos.logback.core.ConsoleAppender"``>` `        ``<!-- 一是把日志信息转换成字节数组,二是把字节数组写入到输出流 -->``        ``<encoder>``            ``<Pattern>[%d{yyyy-MM-dd HH:mm:ss.SSS}] [%5level] [%thread] %logger{``0``} %msg%n</Pattern>``            ``<charset>UTF-``8``</charset>``        ``</encoder>``    ``</appender>` `    ``<!-- 文件日志 -->``    ``<appender name=``"DEBUG"` `class``=``"ch.qos.logback.core.FileAppender"``>``        ``<file>debug.log</file>``        ``<!-- append: ``true``,日志被追加到文件结尾; ``false``,清空现存文件;默认是``true` `-->``        ``<append>``true``</append>``        ``<filter ``class``=``"ch.qos.logback.classic.filter.LevelFilter"``>``            ``<!-- LevelFilter: 级别过滤器，根据日志级别进行过滤 -->``            ``<level>DEBUG</level>``            ``<onMatch>ACCEPT</onMatch>``            ``<onMismatch>DENY</onMismatch>``        ``</filter>``        ``<encoder>``            ``<Pattern>[%d{yyyy-MM-dd HH:mm:ss.SSS}] [%5level] [%thread] %logger{``0``} %msg%n</Pattern>``            ``<charset>UTF-``8``</charset>``        ``</encoder>``    ``</appender>` `    ``<!-- 滚动记录文件，先将日志记录到指定文件，当符合某个条件时，将日志记录到其他文件 -->``    ``<appender name=``"INFO"` `class``=``"ch.qos.logback.core.rolling.RollingFileAppender"``>``        ``<File>info.log</File>` `        ``<!-- ThresholdFilter:临界值过滤器，过滤掉 TRACE 和 DEBUG 级别的日志 -->``        ``<filter ``class``=``"ch.qos.logback.classic.filter.ThresholdFilter"``>``            ``<level>INFO</level>``        ``</filter>` `        ``<encoder>``            ``<Pattern>[%d{yyyy-MM-dd HH:mm:ss.SSS}] [%5level] [%thread] %logger{``0``} %msg%n</Pattern>``            ``<charset>UTF-``8``</charset>``        ``</encoder>` `        ``<rollingPolicy ``class``=``"ch.qos.logback.core.rolling.TimeBasedRollingPolicy"``>``            ``<!-- 每天生成一个日志文件，保存``30``天的日志文件``            ``- 如果隔一段时间没有输出日志，前面过期的日志不会被删除，只有再重新打印日志的时候，会触发删除过期日志的操作。``            ``-->``            ``<fileNamePattern>info.%d{yyyy-MM-dd}.log</fileNamePattern>``            ``<maxHistory>``30``</maxHistory>``            ``<TimeBasedFileNamingAndTriggeringPolicy ``class``=``"ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP"``>``                ``<maxFileSize>100MB</maxFileSize>``            ``</TimeBasedFileNamingAndTriggeringPolicy>``        ``</rollingPolicy>``    ``</appender >` `    ``<!--<!– 异常日志输出 –>-->``    ``<!--<appender name=``"EXCEPTION"` `class``=``"ch.qos.logback.core.rolling.RollingFileAppender"``>-->``        ``<!--<file>exception.log</file>-->``        ``<!--<!– 求值过滤器，评估、鉴别日志是否符合指定条件. 需要额外的两个JAR包，commons-compiler.jar和janino.jar –>-->``        ``<!--<filter ``class``=``"ch.qos.logback.core.filter.EvaluatorFilter"``>-->``            ``<!--<!– 默认为 ch.qos.logback.classic.boolex.JaninoEventEvaluator –>-->``            ``<!--<evaluator>-->``                ``<!--<!– 过滤掉所有日志消息中不包含``"Exception"``字符串的日志 –>-->``                ``<!--<expression>``return` `message.contains(``"Exception"``);</expression>-->``            ``<!--</evaluator>-->``            ``<!--<OnMatch>ACCEPT</OnMatch>-->``            ``<!--<OnMismatch>DENY</OnMismatch>-->``        ``<!--</filter>-->` `        ``<!--<triggeringPolicy ``class``=``"ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy"``>-->``            ``<!--<!– 触发节点，按固定文件大小生成，超过5M，生成新的日志文件 –>-->``            ``<!--<maxFileSize>5MB</maxFileSize>-->``        ``<!--</triggeringPolicy>-->``    ``<!--</appender>-->` `    ``<appender name=``"ERROR"` `class``=``"ch.qos.logback.core.rolling.RollingFileAppender"``>``        ``<file>error.log</file>` `        ``<encoder>``            ``<Pattern>[%d{yyyy-MM-dd HH:mm:ss.SSS}] [%5level] [%thread] %logger{``0``} %msg%n</Pattern>``            ``<charset>UTF-``8``</charset>``        ``</encoder>` `        ``<!-- 按照固定窗口模式生成日志文件，当文件大于20MB时，生成新的日志文件。``        ``-    窗口大小是``1``到``3``，当保存了``3``个归档文件后，将覆盖最早的日志。``        ``-    可以指定文件压缩选项``        ``-->``        ``<rollingPolicy ``class``=``"ch.qos.logback.core.rolling.FixedWindowRollingPolicy"``>``            ``<fileNamePattern>error.%d{yyyy-MM}(%i).log.zip</fileNamePattern>``            ``<minIndex>``1``</minIndex>``            ``<maxIndex>``3``</maxIndex>``            ``<timeBasedFileNamingAndTriggeringPolicy ``class``=``"ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP"``>``                ``<maxFileSize>100MB</maxFileSize>``            ``</timeBasedFileNamingAndTriggeringPolicy>``            ``<maxHistory>``30``</maxHistory>``        ``</rollingPolicy>``    ``</appender>` `    ``<!-- 异步输出 -->``    ``<appender name =``"ASYNC"` `class``= ``"ch.qos.logback.classic.AsyncAppender"``>``        ``<!-- 不丢失日志.默认的,如果队列的``80``%已满,则会丢弃TRACT、DEBUG、INFO级别的日志 -->``        ``<discardingThreshold >``0``</discardingThreshold>``        ``<!-- 更改默认的队列的深度,该值会影响性能.默认值为``256` `-->``        ``<queueSize>``512``</queueSize>``        ``<!-- 添加附加的appender,最多只能添加一个 -->``        ``<appender-ref ref =``"ERROR"``/>``    ``</appender>` `    ``<!--``    ``- ``1``.name：包名或类名，用来指定受此logger约束的某一个包或者具体的某一个类``    ``- ``2``.未设置打印级别，所以继承他的上级<root>的日志级别“DEBUG”``    ``- ``3``.未设置additivity，默认为``true``，将此logger的打印信息向上级传递；``    ``- ``4``.未设置appender，此logger本身不打印任何信息，级别为“DEBUG”及大于“DEBUG”的日志信息传递给root，``    ``-  root接到下级传递的信息，交给已经配置好的名为“STDOUT”的appender处理，“STDOUT”appender将信息打印到控制台；``    ``-->``    ``<logger name=``"ch.qos.logback"` `/>` `    ``<!--``    ``- ``1``.将级别为“INFO”及大于“INFO”的日志信息交给此logger指定的名为“STDOUT”的appender处理，在控制台中打出日志，``    ``-   不再向次logger的上级 <logger name=``"logback"``/> 传递打印信息``    ``- ``2``.level：设置打印级别（TRACE, DEBUG, INFO, WARN, ERROR, ALL 和 OFF），还有一个特殊值INHERITED或者同义词NULL，代表强制执行上级的级别。``    ``-        如果未设置此属性，那么当前logger将会继承上级的级别。``    ``- ``3``.additivity：为``false``，表示此logger的打印信息不再向上级传递,如果设置为``true``，会打印两次``    ``- ``4``.appender-ref：指定了名字为``"STDOUT"``的appender。``    ``-->``    ``<logger name=``"com.weizhi.common.LogMain"` `level=``"INFO"` `additivity=``"false"``>``        ``<appender-ref ref=``"STDOUT"``/>``        ``<!--<appender-ref ref=``"DEBUG"``/>-->``        ``<!--<appender-ref ref=``"EXCEPTION"``/>-->``        ``<!--<appender-ref ref=``"INFO"``/>-->``        ``<!--<appender-ref ref=``"ERROR"``/>-->``        ``<appender-ref ref=``"ASYNC"``/>``    ``</logger>` `    ``<!--``    ``- 根logger``    ``- level:设置打印级别，大小写无关：TRACE, DEBUG, INFO, WARN, ERROR, ALL 和 OFF，不能设置为INHERITED或者同义词NULL。``    ``-       默认是DEBUG。``    ``-appender-ref:可以包含零个或多个<appender-ref>元素，标识这个appender将会添加到这个logger``    ``-->``    ``<root level=``"DEBUG"``>``        ``<appender-ref ref=``"STDOUT"``/>``        ``<!--<appender-ref ref=``"DEBUG"``/>-->``        ``<!--<appender-ref ref=``"EXCEPTION"``/>-->``        ``<!--<appender-ref ref=``"INFO"``/>-->``        ``<appender-ref ref=``"ASYNC"``/>``    ``</root>``</configuration>`
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+-scan:当此属性设置为true时，配置文件如果发生改变，将会被重新加载，默认值为true
+-scanPeriod:设置监测配置文件是否有修改的时间间隔，如果没有给出时间单位，默认单位是毫秒。
+-		当scan为true时，此属性生效。默认的时间间隔为1分钟
+-debug:当此属性设置为true时，将打印出logback内部日志信息，实时查看logback运行状态。默认值为false。
+-
+-configuration子节点为appender、logger、root
+-->
+<configuration scan="true" scanPeriod="60 second" debug="false">
+ 
+    <!-- 负责写日志,控制台日志 -->
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+ 
+        <!-- 一是把日志信息转换成字节数组,二是把字节数组写入到输出流 -->
+        <encoder>
+            <Pattern>[%d{yyyy-MM-dd HH:mm:ss.SSS}] [%5level] [%thread] %logger{0} %msg%n</Pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+ 
+    <!-- 文件日志 -->
+    <appender name="DEBUG" class="ch.qos.logback.core.FileAppender">
+        <file>debug.log</file>
+        <!-- append: true,日志被追加到文件结尾; false,清空现存文件;默认是true -->
+        <append>true</append>
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
+            <!-- LevelFilter: 级别过滤器，根据日志级别进行过滤 -->
+            <level>DEBUG</level>
+            <onMatch>ACCEPT</onMatch>
+            <onMismatch>DENY</onMismatch>
+        </filter>
+        <encoder>
+            <Pattern>[%d{yyyy-MM-dd HH:mm:ss.SSS}] [%5level] [%thread] %logger{0} %msg%n</Pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+ 
+    <!-- 滚动记录文件，先将日志记录到指定文件，当符合某个条件时，将日志记录到其他文件 -->
+    <appender name="INFO" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <File>info.log</File>
+ 
+        <!-- ThresholdFilter:临界值过滤器，过滤掉 TRACE 和 DEBUG 级别的日志 -->
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>INFO</level>
+        </filter>
+ 
+        <encoder>
+            <Pattern>[%d{yyyy-MM-dd HH:mm:ss.SSS}] [%5level] [%thread] %logger{0} %msg%n</Pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+ 
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <!-- 每天生成一个日志文件，保存30天的日志文件
+            - 如果隔一段时间没有输出日志，前面过期的日志不会被删除，只有再重新打印日志的时候，会触发删除过期日志的操作。
+            -->
+            <fileNamePattern>info.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+            <TimeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+                <maxFileSize>100MB</maxFileSize>
+            </TimeBasedFileNamingAndTriggeringPolicy>
+        </rollingPolicy>
+    </appender >
+ 
+    <!--<!– 异常日志输出 –>-->
+    <!--<appender name="EXCEPTION" class="ch.qos.logback.core.rolling.RollingFileAppender">-->
+        <!--<file>exception.log</file>-->
+        <!--<!– 求值过滤器，评估、鉴别日志是否符合指定条件. 需要额外的两个JAR包，commons-compiler.jar和janino.jar –>-->
+        <!--<filter class="ch.qos.logback.core.filter.EvaluatorFilter">-->
+            <!--<!– 默认为 ch.qos.logback.classic.boolex.JaninoEventEvaluator –>-->
+            <!--<evaluator>-->
+                <!--<!– 过滤掉所有日志消息中不包含"Exception"字符串的日志 –>-->
+                <!--<expression>return message.contains("Exception");</expression>-->
+            <!--</evaluator>-->
+            <!--<OnMatch>ACCEPT</OnMatch>-->
+            <!--<OnMismatch>DENY</OnMismatch>-->
+        <!--</filter>-->
+ 
+        <!--<triggeringPolicy class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy">-->
+            <!--<!– 触发节点，按固定文件大小生成，超过5M，生成新的日志文件 –>-->
+            <!--<maxFileSize>5MB</maxFileSize>-->
+        <!--</triggeringPolicy>-->
+    <!--</appender>-->
+ 
+    <appender name="ERROR" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>error.log</file>
+ 
+        <encoder>
+            <Pattern>[%d{yyyy-MM-dd HH:mm:ss.SSS}] [%5level] [%thread] %logger{0} %msg%n</Pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+ 
+        <!-- 按照固定窗口模式生成日志文件，当文件大于20MB时，生成新的日志文件。
+        -    窗口大小是1到3，当保存了3个归档文件后，将覆盖最早的日志。
+        -    可以指定文件压缩选项
+        -->
+        <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
+            <fileNamePattern>error.%d{yyyy-MM}(%i).log.zip</fileNamePattern>
+            <minIndex>1</minIndex>
+            <maxIndex>3</maxIndex>
+            <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+                <maxFileSize>100MB</maxFileSize>
+            </timeBasedFileNamingAndTriggeringPolicy>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+    </appender>
+ 
+    <!-- 异步输出 -->
+    <appender name ="ASYNC" class= "ch.qos.logback.classic.AsyncAppender">
+        <!-- 不丢失日志.默认的,如果队列的80%已满,则会丢弃TRACT、DEBUG、INFO级别的日志 -->
+        <discardingThreshold >0</discardingThreshold>
+        <!-- 更改默认的队列的深度,该值会影响性能.默认值为256 -->
+        <queueSize>512</queueSize>
+        <!-- 添加附加的appender,最多只能添加一个 -->
+        <appender-ref ref ="ERROR"/>
+    </appender>
+ 
+    <!--
+    - 1.name：包名或类名，用来指定受此logger约束的某一个包或者具体的某一个类
+    - 2.未设置打印级别，所以继承他的上级<root>的日志级别“DEBUG”
+    - 3.未设置additivity，默认为true，将此logger的打印信息向上级传递；
+    - 4.未设置appender，此logger本身不打印任何信息，级别为“DEBUG”及大于“DEBUG”的日志信息传递给root，
+    -  root接到下级传递的信息，交给已经配置好的名为“STDOUT”的appender处理，“STDOUT”appender将信息打印到控制台；
+    -->
+    <logger name="ch.qos.logback" />
+ 
+    <!--
+    - 1.将级别为“INFO”及大于“INFO”的日志信息交给此logger指定的名为“STDOUT”的appender处理，在控制台中打出日志，
+    -   不再向次logger的上级 <logger name="logback"/> 传递打印信息
+    - 2.level：设置打印级别（TRACE, DEBUG, INFO, WARN, ERROR, ALL 和 OFF），还有一个特殊值INHERITED或者同义词NULL，代表强制执行上级的级别。
+    -        如果未设置此属性，那么当前logger将会继承上级的级别。
+    - 3.additivity：为false，表示此logger的打印信息不再向上级传递,如果设置为true，会打印两次
+    - 4.appender-ref：指定了名字为"STDOUT"的appender。
+    -->
+    <logger name="com.weizhi.common.LogMain" level="INFO" additivity="false">
+        <appender-ref ref="STDOUT"/>
+        <!--<appender-ref ref="DEBUG"/>-->
+        <!--<appender-ref ref="EXCEPTION"/>-->
+        <!--<appender-ref ref="INFO"/>-->
+        <!--<appender-ref ref="ERROR"/>-->
+        <appender-ref ref="ASYNC"/>
+    </logger>
+ 
+    <!--
+    - 根logger
+    - level:设置打印级别，大小写无关：TRACE, DEBUG, INFO, WARN, ERROR, ALL 和 OFF，不能设置为INHERITED或者同义词NULL。
+    -       默认是DEBUG。
+    -appender-ref:可以包含零个或多个<appender-ref>元素，标识这个appender将会添加到这个logger
+    -->
+    <root level="DEBUG">
+        <appender-ref ref="STDOUT"/>
+        <!--<appender-ref ref="DEBUG"/>-->
+        <!--<appender-ref ref="EXCEPTION"/>-->
+        <!--<appender-ref ref="INFO"/>-->
+        <appender-ref ref="ASYNC"/>
+    </root>
+</configuration>
 ```
