@@ -21,7 +21,7 @@ ECMAScript和web浏览器没有依赖关系。我们常见的Web浏览器只是E
 > ECMAScript中有6种数据类型：
 >
 > 	基本类型：Undefined, Nul, Boolean, Number, String
->	
+>		
 > 	引用类型：Object
 
 #### 3.4.1 typeof操作符
@@ -267,7 +267,7 @@ ECMAScript的函数不能像传统意义上那样实现重载，但是如上例�
 
 ### 4.1 基本类型和引用类型的值
 
-ECMAScript变量包含两种不同数据类型的值：**基本类型值**和**引用类型值**
+ECMAScript变量包含两种不同数据类型的值：**基本类型值**（Undefined、Null、Boolean、Number、String）和**引用类型值**
 
 #### 4.1.1 动态地属性
 
@@ -684,7 +684,300 @@ ECMAScript 5种规定，使用正则表达式字面量和直接调用RegExp构�
 
 ### 5.5 Function类型
 
+每个函数都是```Function```类型的实例，与其他引用类型一样具有属性和方法。**函数名是指向函数对象的指针**。因此函数名与包含对象指针的其他变量没有不同，即一个函数可能会有多个名字。
 
+```js
+function sum(num1, num2) {
+    return num1 + num2;
+}
+console.log(sum(1, 2));
+
+var anotherSum = sum;
+console.log(another(1, 2));
+```
+
+#### 5.5.1 没有重载
+
+> 因为函数名是指针，所以ECMAScript中没有函数重载的概念
+
+#### 5.5.2 函数声明与函数表达式
+
+解析器在向执行环境中加载数据时，对函数声明和函数表达式并非一视同仁。**解析器会先读取函数声明，并使其在执行任何代码之前可用（可以访问）；至于函数表达式，则必须等到解析器执行到它所在的代码行才会真正被解释执行**。
+
+#### 5.5.4 函数内部属性
+
+在函数内部，有两个特殊的**对象**：```arguments```和```this```
+
+##### arguments
+
+```arguments```还有一个```callee```的属性，指向拥有这个```arguments```对象的函数
+
+```js
+function factorial (num) {
+    if (num <= 1) {
+        return 1;
+    } else {
+      return num * arguments.callee(num - 1);	// num * factorial(num - 1)  
+    }
+}
+```
+
+##### this
+
+```this```引用的是函数据以执行的环境对象。
+
+##### caller
+
+ECMAScript 5规范化了另一个**函数对象的属性**：```caller```。这个属性中保存着调用这个函数的函数的引用，**如果是在全局作用域中调用这个函数，它的值为null**。
+
+```js
+function outer () {
+    inner();
+}
+
+function inner() {
+    console.log(outer.caller);			// null
+    console.log(arguments.callee.caller);			// f outer() { inner(); }
+}
+
+outer();	
+```
+
+#### 5.5.5 函数属性和方法
+
+##### 属性
+
+函数是对象，因此函数也有属性和方法，函数包含两个属性：```length```和```prototype```。```length```表示函数希望接收的命名参数的个数。
+
+```js
+function sum (num1, num2) {
+	return num1 + num2;
+}
+console.log(sum.length);		// 2
+```
+
+##### 方法
+
+每个函数包含两个非继承而来的方法：```apply()```和```call()```。这两个方法用途都是**在特定的作用域中调用函数**（实际上等于设置函数体内```this```对象的值）。
+
+###### apply
+
+```js
+function sum (num1, num2) {
+    return num1 + num2;
+}
+function applySum (num1, num2) {
+    return sum.apply(this, arguments);		// 或者sum.apply(this, [num1, num2]);
+}
+
+console.log(applySum(1, 2));		// 此时applySum中的this指向window
+```
+
+* 第一个参数：运行函数的作用域
+* 第二个参数：Array的实例（参数数组），或者是```arguments```对象
+
+###### call
+
+```call()```和```apply()```作用相同，区别仅在于接收参数的方式不同
+
+```js
+function callSum (num1, num2) {
+    return sum.call(this, num1, num2);
+}
+```
+
+###### call和apply的作用
+
+> 能够扩充函数赖以运行的作用域
+
+```js
+window.color = 'red';
+var o = { color: 'yellow' };
+
+function sayColor() {
+    console.log(this.color);
+}
+
+sayColor();						// red
+sayColor.call(this);			// red
+sayColor.call(window);			// red
+sayColor.apply(o);				// yellow
+```
+
+使用```call()```（或```apply()```）来扩充作用域的最大好处，就是**对象不需要与方法有任何耦合关系**。
+
+### 5.6 基本包装类型
+
+有3个特殊的引用类型：Boolean、Number和String。
+
+```js
+var s1 = "some text";
+var s2 = s1.substring(2);
+```
+
+字符串是基本类型值，所以从逻辑上不该有方法，而实际上，在读取模式中（在line 2中```var s2 = s1.substring(2)```）访问字符串时，后台会完成下列处理：
+
+1. 创建String类型的一个实例
+2. 在实例上调用指定的方法
+3. 销毁这个实例
+
+也就是相当于：
+
+```js
+var s1 = "some text";
+var ss = new String(s1);
+var s2 = ss.substring(2);
+ss = null;
+```
+
+这三个步骤也适用于Boolean和Number。
+
+使用new创建的引用类型的实例**在执行流离开当前作用域之前都一直保存在内存中**；自动创建的基本包装类的对象则**只存在于一行代码的执行瞬间，然后立即被销毁**。
+
+> 因此我们不能在运行时为基本类型值添加属性和方法
+
+```js
+var s1 = "some text";
+s1.color = "red";
+console.log(s1.color);			// undefined
+```
+
+第二行创建的String对象在执行第三行代码时已经被销毁了，第三行代码又创建自己的String对象，该对象没有color属性。
+
+> Object构造函数也会像工厂方法一样，根据传入值的类型返回相应基本包装类型的实例
+
+```js
+var obj = new Object("some text");
+console.log(obj instanceof String);			// true
+```
+
+使用```new```调用基本包装类型的构造函数、与直接调用同名的转型函数是不一样的
+
+```js
+var value = "25";
+var number = Number(value);
+console.log(typeof number);			// "number"
+
+var obj = new Number(value);
+console.log(typeof obj);			// "object"
+```
+
+#### 5.6.1 Boolean类型
+
+建议永远不要使用Boolean对象，因为：
+
+```js
+var falseObj = new Boolean(false);
+console.log(falseObj && true);			// true
+```
+
+#### 5.6.2 Number类型
+
+也不建议使用Number对象
+
+#### 5.6.3 String类型
+
+##### 1. 属性
+
+```length```属性：字符串中的字符数量
+
+##### 2. 字符方法
+
+```charAt()```：以单字符字符串的形式返回给定位置的那个字符
+
+```charCodeAt()```：得到指定位置的字符的字符编码
+
+```js
+var str = "hello world";
+console.log(str.charAt(1));			// "e"
+console.log(str.charCodeAt(1));		// "101"
+```
+
+也可以使用类似数组的方式来访问特定字符
+
+```js
+console.log(str[1]);				// "e"
+```
+
+##### 3. 字符串操作方法
+
+> 以下方法都不会改变原字符串
+
+###### concat()
+
+将多个字符串拼接起来，返回拼接得到的新字符串
+
+###### slice()、substring()、substr()
+
+返回子字符串，只是参数意义不一样。
+
+* 参数都为正值时
+
+  ```js
+  var str = "hello world";
+  console.log(str.slice(3));					// "lo world"
+  console.log(str.substring(3));				// "lo world"
+  console.log(str.substr(3));					// "lo world"
+  
+  console.log(str.slice(3, 7));				// "lo w"		[3, 7)
+  console.log(str.substring(3, 7));			// "lo w"		[3, 7)
+  console.log(str.substr(3, 7));				// "lo worl"	[3, 3 + 7)
+  ```
+
+* 参数为负数时
+
+  情况太多
+
+##### 4. 字符串位置方法
+
+```indexOf()```：从前往后搜索子字符串的位置
+
+```lastIndexOf()```：从后往前搜索子字符串的位置
+
+##### 5. trim()
+
+创建字符串副本，删除前置及后缀的所有空格
+
+##### 6. 大小写转换方法
+
+```toLowerCase()```、```toUpperCase()```、```toLocaleLowerCase()```、```toLocaleUpperCase()```
+
+##### 7. 字符串的模式匹配方法
+
+###### match()
+
+本质与调用RegExp的```exec()```方法相同。```match()```只接受一个参数，要么是正则表达式，要么是一个RegExp对象。
+
+```js
+var text = 'mom and dad and babymom';
+var pattern = /mom( and dad( and baby)?)?/gi;
+
+var matches = text.match(pattern);
+```
+
+matches和5.4.2节得到的结果一样。
+
+###### search()
+
+唯一参数与```match()```参数相同。返回字符串中第一个匹配项的索引；如果没找到则返回-1
+
+###### replace()
+
+第一个参数可以是一个RegExp对象或者一个字符串（不会被转成正则表达式）；第二个参数是一个字符串或者一个函数。如果参数一是字符串，则只会替换第一个字符串，要向替换所有子字符串，参数一应为正则表达式，而且要指定全局标志。
+
+> 如果第二个参数是字符串，还可以使用一些特殊的字符序列，将正则表达式操作得到的值插入到结果字符串中
+
+```js
+var text = "cat, bat, sat, fat";
+var result = text.replace(/(.at)/g, "word ($1)");
+console.log(result);		// word (cat), word (bat), word (sat), word (fat)
+```
+
+$n：匹配第n个捕获组的字符串
+
+###### split()
+
+参数一是RegExp对象或者字符串，第二个参数可选，指定返回数组的大小。
 
 
 
