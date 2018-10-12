@@ -979,5 +979,692 @@ $n：匹配第n个捕获组的字符串
 
 参数一是RegExp对象或者字符串，第二个参数可选，指定返回数组的大小。
 
+### 5.7 单体内置对象
+
+#### 5.7.2 Math对象
+
+Math对象的```max()```和```min()```不接收数组作为参数，只能把要比较的数一个个作为参数：```Math.max(1, 2, 3, 4, 5)```。因此，如果参数是数组，可以这样调用：
+
+```js
+var values = [1, 2, 3, 4, 5];
+var max = Math.max.apply(Math, values);
+```
+
+## 第6章 面向对象的程序设计
+
+可以把ECMAScript中的对象想象成散列表。
+
+### 6.1 理解对象
+
+#### 6.1.1 属性类型
+
+ECMA-262第5版在定义只有内部才用的特性时，描述了属性的各种特征（例如[[Enumerable]]）
+
+ECMAScript中有两种属性：**数据属性**和**访问器属性**
+
+##### 1. 数据属性
+
+数据属性包含一个数据值的位置。在这个位置可以读取和写入值。数据属性有4个描述其行为的特性
+
+* ```[[configurable]]```：表示能否通过```delete```删除属性从而重新定义属性，能否修改属性的特性，或者能否把属性修改为访问器属性
+* ```[[Enumerable]]```：表示能否通过```for-in```循环返回属性
+* ```[[Writable]]```：表示能否修改属性的值。
+* ```[[Value]]```：包含这个属性的数据值。读取属性值的时候，从这个位置读；写入属性值的时候，把新值保存在这个位置。这个特性的默认值为```undefined```。
+
+```js
+var person = {
+    name: 'Harry';
+}
+```
+
+像这样直接在对象上定义的属性，它们的```[[configurable]]```、```[[Enumerable]]```、```[[Writable]]```特性都被设置为**true**，而```[[Value]]```特性被设置为指定的值（'Harry'）。
+
+要修改属性默认的特性，必须使用```Object.defineProperty()```：
+
+```js
+var person = {};
+Object.defineProperty(person, "name", {
+    writable: false,
+    value: 'Harry'
+});
+
+console.log(person.name);			// Harry
+person.name = 'Hermione';
+console.log(person.name);			// Harry
+
+delete person.name;
+console.log(person.name);			// Harry
+```
+
+**一旦把```[[configurable]]```设置为false后，就不能再修改除```[[writable]]```之外的其他特性**。
+
+在调用```Object.defineProperty()```创建一个新的属性时，如果不指定，```[[configurable]]```、```[[Enumerable]]```、```[[Writable]]```特性的默认值都是**false**；如果调用```Object.defineProperty()```修改已定义的属性的特性，则无此限制。
+
+##### 2. 访问器属性
+
+访问器属性不包含数据值；它们包含一对```getter()```和```setter()```（不过这两个函数都不是必须的）。在读取访问器属性时，会调用```getter()```函数；在写入访问器属性时，会调用```setter()```并传入新值。访问器属性有4个特性：
+
+* ```[[configurable]]```
+* ```[[Enumerable]]```
+* ```[[Get]]```：读取属性时调用的函数，默认值为undefined
+* ```[[Set]]```：写入属性时调用的函数，默认值为undefined
+
+**访问器属性不能直接定义，必须使用```Object.defineProperty()```来定义**：
+
+```js
+var book = {
+    _year: 2004,
+    edition: 1
+};
+
+Object.defineProperty(book, "year", {
+    get: function () {
+        return this._year;
+    },
+    set: function (newValue) {
+        if (newValue > 2004) {
+            this._year = newValue;
+            this.edition += newValue - 2004;
+        }
+    }
+});
+
+book.year = 2005;
+console.log(book.edition);		// 2
+```
+
+```_year```前面的下划线是一种常用的记号，表示只能通过对象方法访问的属性。
+
+不一定非要同时指定```getter()```和```setter()```，只指定```getter()```意味着属性是不能写的；只指定```setter()```的函数也不能读。
+
+#### 6.1.2 定义多个属性
+
+利用```Object.defineProperties()```可以一次定义多个属性：
+
+```js
+var book = {};
+
+Object.defineProperties(book, {
+    _year: {
+        writable: true,
+        value: 2004
+    },
+    edition: {
+        writable: true,
+        value: 1
+    },
+    year: {
+        get: function() {
+            // ..
+        },
+        set: function(newValue) {
+            // ..
+        }
+    }
+});
+```
+
+#### 6.1.3 读取属性的特性
+
+利用```Object.getOwnPropertyDescriptor()```可以取得给定属性的描述符：
+
+```js
+var desc = Object.getOwnPropertyDescriptor(person, 'name');
+console.log(desc);			
+// {value: "Harry", writable: false, enumerable: false, configurable: false}
+```
+
+该方法只能用于实例属性，如果要取得原型属性的描述符，则必须直接在原型对象上调用：
+
+```js
+Object.getOwnPropertyDescriptor(Person.prototype, 'name');
+```
+
+### 6.2 创建对象
+
+使用Object构造函数或对象字面量创建对象有一个明显缺点：**使用同一个接口创建很多对象，会产生大量的重复代码**。可以使用工厂模式的一种变体来解决这个问题
+
+#### 6.2.1 工厂模式
+
+```js
+function createPerson(name, age, job) {
+    var o = new Object();
+    o.name = name;
+    o.age = age;
+    o.sayName = function () {
+        console.log(this.name);
+    };
+    return o;
+}
+
+var person = createPerson('Harry', 16, 'Magician');
+```
+
+工厂模式虽然解决了多个相似对象的问题，但**没有解决对象识别的问题**（即怎样知道一个对象的类型）。构造函数模式可以解决这个问题
+
+#### 6.2.2 构造函数模式
+
+```js
+function Person(name, age, job) {
+    this.name = name;
+    this.age = age;
+    this.job = job;
+    this.sayName = function () {
+        console.log(this.name);
+    }
+}
+
+var person = new Person('Harry', 16, 'Magician');
+```
+
+> 安装惯例，构造函数始终都应该以一个大写字母开头，而非构造函数应该以一个小写字母开头。
+
+使用```new```来创建Person的新实例时，实际经历以下4个步骤：
+
+* 创建一个新对象
+* 将构造函数的作用域赋给新对象（相当于调用```apply()```方法，把this指向这个新对象）
+* 执行构造函数中的代码
+* 返回新对象
+
+person对象有一个```constructor```属性，该属性指向Person：
+
+```js
+console.log(person.constructor === Person);			// true
+```
+
+使用构造函数模式创建对象可以标识新对象的类型：
+
+```js
+console.log(person instanceof Object);				// true
+console.log(person instanceof Person);				// true
+```
+
+##### 1. 将构造函数当作函数
+
+**构造函数与其他函数的唯一区别，就在于调用它们的方式不同**。实际上，任何函数只要通过```new```操作符来调，那就可以作为构造函数；而任何函数如果不通过```new```来调，那就和普通函数不会有什么两样：
+
+```js
+// 当作构造函数调用
+var person = new Person('Harry', 16, 'Magician');
+person.sayName();		// Harry
+
+// 当作普通函数调用
+Person('Hermione', 16, 'Magician');
+window.sayName();		// Hermione
+
+// 在另一个对象的作用域中调用
+var o = new Object();
+Person.call(o, 'Weasley', 16, 'Magician' )
+o.sayName();			// Weasley
+```
+
+##### 2. 构造函数的问题
+
+构造函数方法的主要问题就是**每个方法都要在每个实例上重新创建一遍**。
+
+```js
+var harry = new Person('Harry', 16, 'Magician');
+var hermione = new Person('Hermione', 16, 'Magician');
+console.log(harry.sayName === hermione.sayName);			// false
+```
+
+因为有```this```对象的存在，不用在执行代码前就把函数绑定到特定对象上面。所以可以通过下面方式解决这个问题：
+
+```js
+function Person(name, age, job) {
+    this.name = name;
+    this.age = age;
+    this.job = job;
+    this.sayName = sayName;
+}
+
+function sayName() {
+    console.log(this.name);
+}
+```
+
+但这种方式也有问题，**在全局作用域中定义的函数实际上只能被某个对象调用，如果对象需要定义很多方法，那么就要定义很多个全局函数，于是我们这个自定义的引用类型就丝毫没有封装性可言了**。可以用原型模式来解决上述问题
+
+#### 6.2.3 原型模式
+
+我们创建的每个函数都有一个```prototype```属性，指向一个原型对象。通过```new```来创建的这个函数的每个实例都共享原型对象所包含的属性和方法。
+
+##### 1. 理解原型对象
+
+只要创建一个新函数，就会根据一组特定的规则为该函数创建一个```prototype```属性，这个属性指向函数的原型对象。在默认情况下，所有原型对象都会自动获得一个```constructor```属性，这个属性是一个是指向这个新函数的指针。
+
+```js
+Person.prototype.constructor === Person
+```
+
+创建了自定义的构造函数之后，其原型对象默认只会有```constructor```属性，至于其他方法，则都要从Object继承而来。当调用构造函数创建一个新实例后，该实例的内部将包含一个指针，指向构造函数的原型对象。ECMAScript-262第5版中管这个指针叫```[[Prototype]]```，虽然在脚本中没有标准的方式访问```[[Prototype]]```，但Firefox、Safari和Chrome在每个对象上都支持一个属性```__proto__```。
+
+![](http://sherry-pic.oss-cn-hangzhou.aliyuncs.com/markdown_2018-10-11_13-48-07.png)
+
+如图可知，**Person的每个实例person1和person2与构造函数没有直接的关系**。
+
+可以通过```isPrototypeOf()```来判断是否是原型：
+
+```js
+console.log(Person.prototype.isPrototypeOf(person1));		// true
+```
+
+还可以通过```Object.getPrototypeOf()```来得到一个对象的原型
+
+```js
+console.log(Object.getPrototypeOf(person1) === Person.prototype);		// true
+```
+
+**当读取某个对象的某个属性时，首先会在该对象中搜索，如果找到了给定名字的属性，则返回该属性的值；如果没有找到，则继续搜索指针所指向的原型对象**。
+
+不能通过对象实例重写原型中的值，在实例中添加了一个属性（与实例原型中的一个属性同名），会在实例中创建该属性，并屏蔽原型中的这个属性
+
+```js
+function Person() {}
+Person.prototype.name = 'Harry';
+
+var person1 = new Person();
+var person2 = new Person();
+person1.name = 'Hermione';
+
+console.log(person1.name);			// Hermione
+console.log(person2.name);			// Harry
+```
+
+使用```hasOwnProperty()```可以检测一个属性是存在于实例中，还是存在于原型中
+
+```js
+console.log(person1.hasOwnProperty('name'));		// true
+console.log(person2.hasOwnProperty('name'));		// false
+```
+
+##### 2. 原型与in操作符
+
+###### a. 单独使用in
+
+在单独使用时，**只要通过对象能够访问给定属性就返回true**，无论该属性在实例中还是原型中。
+
+```js
+function Person() {}
+Person.prototype.name = 'Harry';
+var person = new Person();
+person.age = 16;
+
+console.log('age' in person);					// true
+console.log('name' in person);					// true
+```
+
+###### b. for-in
+
+在使用for-in循环时，返回的是**所有能够通过对象访问的、可枚举的属性**，包括实例属性和原型属性。
+
+###### c. 可枚举的实例属性
+
+可以通过```Object.keys()```得到对象上所有可枚举的实例属性
+
+```js
+function Person() {}
+
+Person.prototype.name = 'Harry';
+Person.prototype.age = 16;
+Person.prototype.sayName = function () {
+    console.log(this.name);
+}
+
+console.log(Object.keys(Person.prototype));		// ["name", "age", "sayName"]
+
+var person = new Person();
+person.name = 'Hermione';
+console.log(Object.keys(person));		// ["name"]
+```
+
+可以通过```Object.getOwnPropertyNames()```来得到所有实例属性，包括不可枚举的。
+
+```js
+console.log(Object.getOwnPropertyNames(Person.prototype));
+// ["constructor", "name", "age", "sayName"]
+```
+
+如上例所示，```constructor```属性不可枚举
+
+##### 3. 更简单的原型语法
+
+```js
+Person.prototype = {
+    name: 'Harry'
+}
+```
+
+这种方式，**原型对象的```constructor```属性不再指向Person了**。这里的语法，本质上完全重写了默认的原型对象（因为每创建一个函数，就会同时创建它的原型对象，这个原型对象有```constructor```属性），此时原型对象中就没有```constructor```属性了（此时原型对象就是个普通对象），但是在原型对象的继承链上还有```constructor```属性。所以**如果用这种简单写法，定义原型对象一定要在创建对象之前（如下所示）**
+
+![](http://sherry-pic.oss-cn-hangzhou.aliyuncs.com/markdown_2018-10-11_14-50-16.png)
+
+此时仍旧可以使用```instanceof```来判断类型
+
+```js
+var friend = new Person();
+console.log(friend instanceof Person);			// true
+```
+
+##### 4. 原型的动态性
+
+* 可以随时修改原型对象的属性，即使先创建实例后修改原型也一样
+
+  ```js
+  var friend = new Person();
+  Person.prototype.sayHi = function() { console.log('Hi') };
+  
+  friend.sayHi();		// Hi
+  ```
+
+* 但是把原型重新赋值和创建实例的顺序就有关系
+
+  ```js
+  function Person() {}
+  
+  var friend = new Person();
+  
+  Person.prototype = {
+      constructor: Person,
+      name: 'Nicholas',
+      age: 29,
+      job: 'Software Engineer',
+      sayName: function () {
+          console.log(this.name);
+      }
+  }
+  
+  friend.sayName();			// error
+  ```
+
+  ![](http://sherry-pic.oss-cn-hangzhou.aliyuncs.com/markdown_2018-10-11_15-06-31.png)
+
+  重写原型对象切断了现有原型与任何之前已经存在的对象实例之间的联系。这些对象实例引用的仍然是最初的原型。
+
+##### 5. 原生对象的原型
+
+**原生的引用类型也是采用原型模式创建的**。所有原生引用类型（Object、Array、String等）都在其构造函数的原型上定义了方法。可以修改原生对象的原型，但不推荐这么做。
+
+##### 6. 原型对象的问题
+
+* 所有的实例在默认情况下都将取得相同的属性值。
+
+* 原型的引用类型的属性会出现问题
+
+  ```js
+  function Person() {}
+  
+  Person.prototype = {
+      friends: ['Harry', 'Hermione', 'Weasley']
+  };
+  
+  var person1 = new Person();
+  var person2 = new Person();
+  
+  person1.friends.push('Voldemort');
+  
+  console.log(person1.firends);	// ["Harry", "Hermione", "Weasley", "Voldemort"]
+  console.log(person2.firends);	// ["Harry", "Hermione", "Weasley", "Voldemort"]
+  ```
+
+#### 6.2.4 组合使用构造函数模式和原型模式
+
+创建自定义类型的最常见方式就是**组合使用构造函数模式与原型模式**。构造函数模式用于定义实例属性，而原型模式用于定义方法和共享的属性。
+
+```js
+function Person(name, age, job) {
+    this.name = name;
+    this.age = age;
+    this.job = job;
+    this.friends = ['Harry', 'Hermione', 'Weasley'];
+}
+
+Person.prototype = {
+    constructor: Person,
+    sayName: function () {
+        console.log(this.name);
+    }
+}
+```
+
+#### 6.2.5 动态原型模式
+
+```js
+function Person(name, age, job) {
+    // 属性
+    this.name = name;
+    this.age = age;
+    this.job = job;
+    
+    // 方法
+    if (typeof this.sayName != "function") {
+        Person.prototype.sayName = function () {
+            console.log(this.name);
+        }
+    }
+}
+```
+
+### 6.3 继承
+
+ECMAScript中只支持实现继承，不支持接口继承。
+
+#### 6.3.2 原型链
+
+实现原型链有一种基本模式：
+
+```js
+function Parent () {
+    this.parentValue = true;
+}
+Parent.prototype.getParentValue = function () {
+    return this.parentValue;
+}
+
+function Child () {
+    this.childValue = false;
+}
+// 继承了Parent
+Child.prototype = new Parent();
+Child.prototype.getChildValue = function () {
+    return this.childValue;
+}
+
+var instance = new Child();
+console.log(instance.getParentValue());			// true
+
+console.log(instance.__proto__.__proto__ == Parent.prototype);			// true
+```
+
+实现继承的本质是**重新原型对象，将子的原型对象指向父的实例**。
+
+##### 1.别忘记默认的原型
+
+> ***所有函数的默认原型都是Object的实例***
+
+```js
+function Course () {}
+var course = new Course();
+
+console.log(course.__proto__.__proto__ === Object.prototype);		// true
+```
+
+##### 2. 确定原型和实例的关系
+
+###### a. instanceof
+
+只要用这个操作符来测试实例与原型链中出现过的构造函数，结果都会返回true
+
+```js
+console.log(instance instanceof Object);		// true
+console.log(instance instanceof Parent);		// true
+console.log(instance instanceof Child);		// true
+```
+
+###### b. isPrototypeOf
+
+只要是原型链中出现过的原型，都会返回true
+
+```js
+console.log(Object.prototype.isPrototypeOf(instance));		// true
+console.log(Parent.prototype.isPrototypeOf(instance));		// true
+console.log(Child.prototype.isPrototypeOf(instance));		// true
+```
+
+##### 3. 谨慎地定义方法
+
+> 给原型添加方法的代码一定要放在替换原型的语句之后，如6.3.2节中的line 12-15
+
+##### 4. 原型链的问题
+
+###### 问题一
+
+引用类型值的原型属性会被所有实例共享。而通过原型来实现继承时，原型实际上变成另一个类型的实例，于是父类型中的实例属性也就变成了子类型中的原型属性：
+
+```js
+function Parent() {
+    this.firends = ['蓉儿', '盈盈', '赵敏'];
+}
+function Child() {}
+
+Child.prototype = new Parent();
+
+var c1 = new Child();
+var c2 = new Child();
+
+c1.firends.push('水笙');
+console.log(c2.friends);		// ["蓉儿", "盈盈", "赵敏", "水笙"]
+```
+
+###### 问题二
+
+在创建子类型的实例时，不能向父类型的构造函数中传递参数。
+
+**实践中很少单独使用原型链**
+
+#### 6.3.2 借用构造函数
+
+在子类型构造函数的内部调用超类型构造函数。
+
+```js
+function Parent() {
+    this.firends = ['蓉儿', '盈盈', '赵敏'];
+    this.name = name;
+}
+
+function Child() {
+    // 继承了Parent
+    Parent.call(this, 'vermouth');
+}
+
+var c1 = new Child();
+var c2 = new Child();
+
+c1.firends.push('水笙');
+console.log(c1.friends);		// ["蓉儿", "盈盈", "赵敏", "水笙"]
+console.log(c2.friends);		// ["蓉儿", "盈盈", "赵敏"]
+```
+
+##### 1. 传递参数
+
+相对于原型链，借用构造函数可以在子构造函数中向父构造函数传递参数
+
+##### 2. 借用构造函数的问题
+
+* 方法都在构造函数中定义，6.2.5节构造函数模式的问题也会在这里出现
+* 在父类型的原型中定义的方法，对子类型也不可见，结果所有类型都只能使用构造函数模式
+
+**实践中很少单独使用借用构造函数**
+
+#### 6.3.3. 组合继承
+
+将原型链和借用构造函数组合起来。**使用原型链实现对原型属性和方法的继承，而通过借用构造函数来实现对实例属性实例属性的继承**。
+
+```js
+function Parent() {
+    this.firends = ['蓉儿', '盈盈', '赵敏'];
+    this.name = name;
+}
+Parent.prototype.sayName = function() {
+    console.log(this.name);
+}
+
+function Child() {
+    // 继承了Parent
+    Parent.call(this, 'vermouth');
+    this.age = age;
+}
+
+Child.prototype = new Parent();
+Child.prototype.sayAge = function() {
+    console.log(this.age);
+}
+```
+
+#### 6.3.4 原型式继承
+
+```js
+function object(o) {
+    function F() {}
+    F.prototype = o;
+    return new F();
+}
+```
+
+从本质上讲，```object()```对传入其中的对象执行了一次浅复制。
+
+```js
+var p1 = {
+    name: 'vermouth',
+    friends: ['蓉儿', '盈盈', '赵敏']
+};
+
+var p2 = object(p1);
+p2.name = 'sherry';
+p2.friends.push('夏青青');
+
+var p3 = object(p1);
+p3.name = 'conan';
+p3.friends.push('水笙');
+
+console.log(p1.friends);		// ["蓉儿", "盈盈", "赵敏", "夏青青", "水笙"]
+console.log(p1.name);			// vermouth
+```
+
+ECMAScript5种新增了```Object.create()```规范化了原型式继承
+
+```js
+var p1 = {
+    name: 'vermouth',
+    friends: ['蓉儿', '盈盈', '赵敏']
+};
+
+var p2 = Object.create(p1, {
+    name: {
+        value: "sherry"
+    }
+});
+```
+
+第二个参数是可选的。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
