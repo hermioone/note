@@ -1648,6 +1648,76 @@ var p2 = Object.create(p1, {
 
 第二个参数是可选的。
 
+## 第7章 函数表达式
+
+函数表达式有几种不同的衣服啊形式，最常见的一种：
+
+```js
+var functionName = function () {}
+```
+
+这种情况下创建的函数叫做匿名函数。
+
+### 函数声明和函数表达式的区别
+
+```js
+if (condition) {
+    function sayHi () {
+        console.log('Hi');
+    }
+} else {
+    function sayHi () {
+        console.log('Yo');
+    }
+}
+```
+
+这在ECMAScript中属于无效语法，JavaScript引擎会尝试修正错误，但是不同浏览器尝试修正错误的做法不一致。因此这种方式很危险，不过如果使用函数表达式，就没有问题了。
+
+```js
+if (condition) {
+    sayHi = function () {
+        console.log('Hi');
+    }
+} else {
+    sayHi = function () {
+        console.log('Yo');
+    }
+}
+```
+
+### 7.1 递归
+
+```js
+function factorial (num) {
+    if (num <= 1) {
+        return 1;
+    }else {
+        return num * arguments.callee(num - 1);
+    }
+}
+```
+
+严格模式下无法使用```arguments.callee```，可以使用命名函数表达式来达成相同的结果。
+
+```js
+var factorial = (function f(num) {
+    if (num <= 1) {
+        return 1;
+    }else {
+        return num * f(num - 1);
+    }
+});
+```
+
+**```f(x)```只能在函数体中使用**
+
+### 7.2 闭包
+
+> 闭包是指有权访问另一个函数作用域中的变量的函数
+
+创建闭包的常见方式，就是在一个函数内部创建另一个函数。
+
 
 
 
