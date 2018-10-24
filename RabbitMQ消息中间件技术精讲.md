@@ -252,6 +252,8 @@ channel.queueBind(queueName, exchangeName, routingKey);
 
 这里Producer和Consumer中的routingKey可以随便设置，不会有任何影响。
 
+> 总结来说，对于不同的交换机类型，Producer的代码几乎相同，只是Consumer端的exchangeType不同
+
 ### 2-15 绑定、队列、消息、虚拟主机详解
 
 * 绑定：Exchange和Exchange、Queue之间的连接关系。绑定中可以包含routingKey或者参数
@@ -394,7 +396,62 @@ SELECT COUNT(1) FROM T_ORDER WHERE ID = 唯一ID + 指纹码
 
 ### 3-5 Confirm确认消息详解
 
+Confirm消息确认机制：
 
+* 消息的确认，是指生产者投递消息后，如果Broker收到消息，则会给我们生产者一个应答
+* 生产者进行接收应答，用来确定这条消息是否正常地发送到Broker，这种方式也是消息的可靠性投递的核心保障
+
+如何实现COnfirm确认消息
+
+1. 在channel上开启确认模式：```channel.confirmSelect()```
+2. 在channel上添加监听：```addConfirmListener```，监听成功和失败的返回结果，根据具体的结果对消息进行重新发送、或记录日志等后续处理
+
+```java
+// 3. 通过Connection创建一个新的Channel
+Channel channel = connection.createChannel();
+
+// 4. 指定我们的消息投递模式：消息的确认模式
+channel.confirmSelect();
+
+String exchangeName = "test_confirm_exchange";
+String routingKey = "confirm.save";
+
+// 5. 发送一条消息
+String msg = "hello, RabbitMQ send confirm message";
+channel.basicPublish(exchangeName, routingKey, null, msg.getBytes());
+
+// 6. 添加一个确认监听
+channel.addConfirmListener(new ConfirmListener() {
+    /**
+             *
+             * @param deliveryTag 消息的唯一标签
+             * @param multiple
+             * @throws IOException
+             */
+    @Override
+    public void handleAck(long deliveryTag, boolean multiple) throws IOException {
+        System.out.println("----------------ack----------------");
+    }
+
+    @Override
+    public void handleNack(long deliveryTag, boolean multiple) throws IOException {
+        System.out.println("----------------no ack----------------");
+    }
+});
+```
+
+Consumer没有变化
+
+### 3-6 Return返回消息详解
+
+Return消息机制：
+
+* Return Listener用于处理一些不可路由的消息
+* 消息生产者通过指定一个Exchange和RoutingKey，把消息送达到某一个队列中去，然后我们的消费者监听队列，进行消费处理操作
+* 但是在某些情况下，在发送消息时，当前的exchange不存在或者指定的路由key路由不到，这个时候我们需要监听这种不可达的消息，就要使用Return Listener
+* 有一个关键的配置项 **Mandatory**：如果为true，则监听器会接收到路由不可达的消息，然后进行后续处理；如果为false，那么broker端自动删除该消息
+
+![](http://sherry-pic.oss-cn-hangzhou.aliyuncs.com/markdown_2018-10-24_22-26-27.png)
 
 
 
