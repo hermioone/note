@@ -453,6 +453,238 @@ Return消息机制：
 
 ![](http://sherry-pic.oss-cn-hangzhou.aliyuncs.com/markdown_2018-10-24_22-26-27.png)
 
+### 3-7 自定义消费者
+
+之前的消费端使用while循环
+
+```java
+// 5. 创建消费者
+QueueingConsumer consumer = new QueueingConsumer(channel);
+channel.basicConsume(queueName, true, consumer);
+
+while (true) {
+    QueueingConsumer.Delivery delivery = consumer.nextDelivery();
+    System.out.println("消费端接收" + new String(delivery.getBody()));
+}
+```
+
+我们可以用一种更优雅的方式来实现消费者
+
+```java
+// 5. 创建消费者
+channel.basicConsume(queueName, true, new MyConsumer(channel));
+
+
+class MyConsumer extends DefaultConsumer {
+
+    /**
+     * Constructs a new instance and records its association to the passed-in channel.
+     *
+     * @param channel the channel to which this consumer is attached
+     */
+    public MyConsumer(Channel channel) {
+        super(channel);
+    }
+
+    @Override
+    public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
+        System.out.println("----------------------consume message");
+        System.err.println("consumerTag: " + consumerTag);
+        System.err.println("envelope: " + envelope);
+        System.err.println("properties: " + properties);
+        System.err.println("body: " + new String(body));
+    }
+}
+```
+
+### 3-8 消费端的限流策略
+
+> 什么是消费端限流？
+
+假设我们的RabbitMQ服务器有上万条未处理的消息，我们随便打开一个消费者客户端，巨量的消息瞬间全部推送过来，但是我们**单个客户端无法同时处理这么多数据**，可能导致服务器崩溃。
+
+> RabbitMQ提供了一种qos（服务质量保证）功能，即在**非自动确认消息**的前提下，如果一定数目的消息（通过基于consume或者channel设置Qos的值）未被确认前，不进行消费新的消息。
+
+***所以autoack一定要设置为false***
+
+```java
+/*
+ * prefetchSize: 0，
+ * prefetchCount: 1，一次最多推送给consumer 1 条消息，收到回复后再推送下1条
+ * global: false，这个限流作用在queue上，true表示作用再channel上
+ */
+channel.basicQos(0, 1, false);
+
+// autoAck设置为false
+channel.basicConsume(queueName, false, new MyConsumer(channel));
+
+
+
+public class MyConsumer extends DefaultConsumer {
+
+    private Channel channel;
+
+    public MyConsumer(Channel channel) {
+        super(channel);
+        this.channel = channel;
+    }
+
+    @Override
+    public void handleDelivery(String consumerTag, 
+                               Envelope envelope, 
+                               AMQP.BasicProperties properties, 
+                               byte[] body) throws IOException {
+        System.out.println("----------------------consume message");
+        System.err.println("consumerTag: " + consumerTag);
+        System.err.println("envelope: " + envelope);
+        System.err.println("properties: " + properties);
+        System.err.println("body: " + new String(body));
+
+        
+        // 注意：这里一定要ack，否则消费者会被block住
+        // false表示不支持 批量签收
+        channel.basicAck(envelope.getDeliveryTag(), false);
+    }
+}
+```
+
+### 3-10 消费端ACK与重回队列机制
+
+#### 消费端的手工ACK和NACK
+
+* 消费端进行消费的时候，如果由于业务异常我们可以进行日志的记录，然后进行补偿
+* 如果由于服务器宕机等严重问题，那我们就需要手工进行ACK保障消费端消费成功
+
+#### 消费端的重回队列
+
+消费端重回队列是为了对没有处理成功的消息，把消息重新回递给Broker。在实际应用中，一半都会***关闭重回队列***。
+
+#### Producer
+
+```java
+for (int i = 0; i < 5; i++) {
+    String msg = "hello, RabbitMQ send ack message " + i;
+
+    Map<String, Object> headers = new HashMap<>();
+    headers.put("num", i);
+
+    AMQP.BasicProperties props = new AMQP.BasicProperties().builder()
+        .deliveryMode(2)
+        .contentEncoding("UTF-8")
+        .headers(headers)
+        .build();
+
+    channel.basicPublish(exchangeName, routingKey2, false, props, msg.getBytes());
+}
+
+channel.close();
+connection.close();
+```
+
+#### Consumer
+
+```java
+// autoAck设置为false
+channel.basicConsume(queueName, false, new MyConsumer(channel));
+
+
+class MyConsumer extends DefaultConsumer {
+
+    private Channel channel;
+
+    public MyConsumer(Channel channel) {
+        super(channel);
+        this.channel = channel;
+    }
+
+    @Override
+    public void handleDelivery(String consumerTag, 
+                               Envelope envelope, 
+                               AMQP.BasicProperties properties, 
+                               byte[] body) throws IOException {
+        System.out.println("----------------------consume message----------------------");
+        System.err.println("body: " + new String(body));
+
+        if((Integer)properties.getHeaders().get("num") == 1) {
+            try {
+                Thread.sleep(2000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            /*
+             * 最后一个参数：requeue=true：消费失败的这个消息重回队列，并且在队列的尾部
+             */
+            channel.basicNack(envelope.getDeliveryTag(), false, true);
+        }else {
+            channel.basicAck(envelope.getDeliveryTag(), false);
+        }
+    }
+}
+```
+
+### 3-11 TTL消息详解
+
+TTL：Time To Live的缩写，也就是生存时间。RabbitMQ支持消息的过期时间，在消息发送时可以进行指定。也支持队列的过期时间，从消息入队开始，只要超过了队列的超时时间配置，那么消息会自动清除
+
+如下代码是作用于消息上的
+
+```java
+AMQP.BasicProperties props = new AMQP.BasicProperties.Builder()
+                .expiration("10000")                // 10s 后如果这个消息没有被消费，则被自动移除
+                .build();
+```
+
+如下代码是作用在队列上，队列上的所有消息10s未被消费，都会被自动移除
+
+```java
+Map<String, Object> arguments = new HashMap<>();
+arguments.put("x-message-ttl", 10000);
+channel.queueDeclare(queueName, true, false, false, arguments);
+```
+
+### 3-12 死信队列DLX
+
+利用DLX，**当消息在一个队列中变成死信（dead message）之后，它能被重新publish到另一个Exchange（DLX）上**。
+
+消息变成死信有以下几种情况：
+
+* 消息被拒绝（basic.reject / basic.nack），并且 requeue=false
+* 消息TTL过期
+* 队列达到最大长度
+
+DLX和一般的Exchange没有任何区别，它能在任何的队列上被指定，实际上就是设置某个队列的属性。当这个队列中有死信时，RabbitMQ会自动地将这个死信消息重新发布到设置的Exchange上去，进而路由到另一个队列。可以监听这个队列中消息做相应的处理，这个特性可以弥补RabbitMQ 3.0之前支持的immediate参数的功能。
+
+#### Producer
+
+```java
+String msg = "hello, RabbitMQ send dlx message";
+for (int i = 0; i < 1; i++) {
+    AMQP.BasicProperties props = new AMQP.BasicProperties.Builder()
+        .deliveryMode(2)                    // 持久化消息
+        .contentEncoding("UTF-8")           // 字符集
+        .expiration("10000")                // 10s 后如果这个消息没有被消费，则被自动移除
+        .build();
+    channel.basicPublish(exchangeName, routingKey2, false, props, msg.getBytes());
+}
+
+channel.close();
+connection.close();
+```
+
+#### Consumer
+
+![](http://sherry-pic.oss-cn-hangzhou.aliyuncs.com/markdown_2018-10-29_22-14-08.png)
+
+## 第四章 整合RabbitMQ与Spring
+
+
+
+
+
+
+
+
+
 
 
 
