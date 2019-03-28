@@ -2,7 +2,7 @@
 
 ## 第一章 课程介绍
 
-### 1-3 业界主流消息中间件介绍
+### 1.3 业界主流消息中间件介绍
 
 #### ActiveMQ
 
@@ -47,12 +47,12 @@ RabbitMQ集群模式
 
 ## 第二章 RabbitMQ核心概念
 
-### 2-3 RabbitMQ高性能的原因
+### 2.3 RabbitMQ高性能的原因
 
 * Erlang语言最初在于交换机领域，这样使得RabbitMQ在Broker之间进行数据交互的性能是非常优秀的
 * Erlang的优点：Erlang有着和原生Socket一样的延迟
 
-### 2-4 AMQP高级消息队列协议与模型
+### 2.4 AMQP高级消息队列协议与模型
 
 AMQP定义：是具有现代特征的二进制协议。是应用层协议的一个开放标准，为面向消息的中间件设计。
 
@@ -60,7 +60,7 @@ AMQP定义：是具有现代特征的二进制协议。是应用层协议的一�
 
 > 生产者投递到Exchange上，消费者从Message Queue中取数据
 
-#### 2-5 AMQP核心概念讲解
+### 2.5 AMQP核心概念讲解
 
 * ```Server```：又称broker，接受客户端的连接，实现AMQP实体服务
 * ````Connection```：应用程序与broker的连接
@@ -74,11 +74,11 @@ AMQP定义：是具有现代特征的二进制协议。是应用层协议的一�
 * ```Routing Key```：路由规则，虚拟机可用它来确定如何路由一个特定消息
 * ```Queue```：消息队列，保存消息并将它们转发给消费者
 
-### 2-6 RabbitMQ整体架构与消息流转
+### 2.6 RabbitMQ整体架构与消息流转
 
 ![](http://sherry-pic.oss-cn-hangzhou.aliyuncs.com/markdown_2018-10-18_21-59-07.png)
 
-### 2-7 RabbitMq环境安装
+### 2.7 RabbitMq环境安装
 
 * 服务的启动：```rabbitmq-server start &```
 * 服务的停止：```rabbitmqctl stop_app```
@@ -86,7 +86,7 @@ AMQP定义：是具有现代特征的二进制协议。是应用层协议的一�
 
 5672是java端进行通信的端口号；15672是管控台的端口号；25672是集群通信的端口号。
 
-### 2-9 命令行与管理台结合讲解
+### 2.9 命令行与管理台结合讲解
 
 凡是可以在管理台执行的操作都可以通过命令行来操作。
 
@@ -96,7 +96,7 @@ AMQP定义：是具有现代特征的二进制协议。是应用层协议的一�
 * ```rabbitmqctl change_cluster_node_type disc | ram```：修改集群节点的存储形式
 * ```rabbitmqctl forget_cluster_node [--offline]```：忘记节点（摘除节点）
 
-### 2-10 生产者消费者模型构建
+### 2.10 生产者消费者模型构建
 
 需要先运行消费者，因为**在消费者中声明了队列**
 
@@ -112,7 +112,7 @@ AMQP定义：是具有现代特征的二进制协议。是应用层协议的一�
 
 ![](http://sherry-pic.oss-cn-hangzhou.aliyuncs.com/markdown_2018-10-18_21-51-18.png)
 
-### 2-12 交换机详解
+### 2.12 交换机详解
 
 Exchange：接收消息，并根据路由键转发消息到所绑定的队列
 
@@ -254,7 +254,7 @@ channel.queueBind(queueName, exchangeName, routingKey);
 
 > 总结来说，对于不同的交换机类型，Producer的代码几乎相同，只是Consumer端的exchangeType不同
 
-### 2-15 绑定、队列、消息、虚拟主机详解
+### 2.15 绑定、队列、消息、虚拟主机详解
 
 * 绑定：Exchange和Exchange、Queue之间的连接关系。绑定中可以包含routingKey或者参数
 
@@ -270,7 +270,17 @@ channel.queueBind(queueName, exchangeName, routingKey);
   * 其它属性：
 
     * content_type、content_encoding、priority
-    * correlation_id、replay_to、expiration、message_id
+
+    * correlation_id、reply_to、expiration、message_id
+
+      correlation_id 通常和 reply_to 一起使用：**用于RPC服务**
+
+      * `replyTo`：通常用来设置一个回调队列
+
+      * `correlationId`：用来关联请求和RPC调用后的恢复
+
+        ![](http://sherry-pic.oss-cn-hangzhou.aliyuncs.com/markdown_2019-01-28_10-43-25.png)
+
     * timestamp、type、user_id、app_id、cluster_id
 
     ```java
@@ -307,7 +317,7 @@ channel.queueBind(queueName, exchangeName, routingKey);
 
 ## 第三章 深入RabbitMQ高级特性
 
-### 3-2 消息如何保障100%的投递成功
+### 3.2 消息如何保障100%的投递成功
 
 什么是生产端的可靠性投递？
 
@@ -347,7 +357,7 @@ channel.queueBind(queueName, exchangeName, routingKey);
 * step6：2分钟后，step2的延迟消息发送到MQ，Callback服务监听延迟投递的队列，去检查DB数据库，查看是否有Confirm
   * 如果没有Confirm，Callback给Upstream发送一个RPC Resend命令。Upstream去查BIZ，再把这个消息重新发出去
 
-### 3-4 幂等性概念及业界主流解决方案
+### 3.3 幂等性概念及业界主流解决方案
 
 #### 幂等性
 
@@ -394,14 +404,70 @@ SELECT COUNT(1) FROM T_ORDER WHERE ID = 唯一ID + 指纹码
 * 是否要进行数据落库，如果落库的话，关键解决的问题是数据库和缓冲如何做到原子性
 * 如果不进行落库，那么都存储到缓存中，如何设置定时同步的策略
 
-### 3-5 Confirm确认消息详解
+### 3.4 持久化
 
-Confirm消息确认机制：
+RabbitMQ的持久化分为三个部分：
 
-* 消息的确认，是指生产者投递消息后，如果Broker收到消息，则会给我们生产者一个应答
-* 生产者进行接收应答，用来确定这条消息是否正常地发送到Broker，这种方式也是消息的可靠性投递的核心保障
+* 交换器的持久化：在声明交换器时将 `durable` 参数设置为 true
+  * 否则交换器的元数据会丢失，但消息不会丢失，只是不能将消息发送到这个交换器
+* 队列的持久化：声明队列时将 `durable` 参数设置为 true
+  * 队列的元数据会丢失，消息也会丢失
+* 消息的持久化：将消息的投递模式（`BasicProperties` 中的 `deliveryMode` 属性）设置为2
+  * 确保RabbitMQ发生异常情况时，消息不会丢失
 
-如何实现COnfirm确认消息
+> 单单只设置队列持久化，重启之后消息会丢失;单单只设置消息的持久化，重启之后队列消失，继而消息也
+> 丢失。单单设置消息持久化而不设置队列的持久化显得毫无意义。
+
+***将交换器、队列、消息都设置了持久化之后就能百分之百保证数据不丢失了吗 ？*** 答案是否定的。
+
+* 从消费者来说，如果在订阅消费队列时将autoAck 参数设置为true ，那么当消费者接收到相关消息之后，还没来得及处理就看机了，这样也算数据丢失。
+
+  * 这种情况很好解决，将 `autoAck` 参数设置为false ， 并进行手动确认。
+
+* 在持久化的消息正确存入RabbitMQ 之后，还需要有一段时间（虽然很短，但是不可忽视）才能存入磁盘之中。RabbitMQ 并不会为每条消息都进行同步存盘(调用内核的fsyncl方法)的处理，可能仅仅保存到操作系统缓存之中而不是物理磁盘之中。如果在这段时间内RabbitMQ 服务节点发生了异常情况，消息保存还没来得及落盘，那么这些消息将会丢失。
+
+  > fsync 在Linux 中的意义在于同步数据到存储设备上。大多数块设备的数据都是通过缓存进行的，将数据写到文件上通常将该数据由内核复制到缓存中，如果缓存尚未写满，则不将其排入输出队列上，而是等待其写满或者当内核需要重用该缓存时，再将该缓存排入输出队列，进而同步到设备上。内核提供了fsync接口，用户可以根据自己的需要通过此接口更新数据到存储设备上。
+
+  * 可以使用RabbitMQ的镜像队列机制来解决这个问题
+
+* 在发送端引入事务机制或者发送方确认机制保证消息已经正确地发送并存储到RabbitMQ中。
+
+
+
+### 3.5 生产者确认
+
+默认情况下生产者是不知道消息有没有正确地到达服务器。如果在消息到达服务器之前己经丢失，持久化操作也解决不了这个问题。RabbitMQ 针对这个问题，提供了两种解决方式:
+
+* 事务机制
+* 发送方确认机制（publisher confirm)
+
+#### 3.5.1 事务机制
+
+```java
+try {
+    channel.txSelect();  			// 将当前信道设置为事务模式
+    for(int i = 0; i < LOOP_TIMES; i++) { // 如果发送多条消息，把发送和提交事务包进循环中
+        channel.basicPublish("exchange", 
+                         "routingKey", 
+                         MessageProperties.PERSISTENT_TEXT_PLAIN, 
+                         ("msg:" + i).getBytes());
+    	channel.txCommit();				// 提交事务
+    }
+}catch(Exception e) {
+    e.printStackTrace();
+    channel.txRollback();			// 事务回滚
+}
+```
+
+> 使用事务机制会极大影响RabbitMQ的性能，降低消息吞吐量。
+
+#### 3.5.2 发送方确认机制 
+
+事务机制在一条消息发送之后会 **使发送端阻塞**，以等待RabbitMQ 的回应，之后才能继续发送下一条消息。相比之下， 发送方确认机制最大的好处在于**它是异步的**，一旦发布一条消息，生产者应用程序就可以在等信道返回确认的同时继续发送下一条消息，当消息最终得到确认之后，生产者应用程序便可以通过回调方法来处理该确认消息，如果RabbitMQ 因为自身内部错误导致消息丢失，就会发送一条nack CBas i c . Nack) 命令，生产者应用程序同样可以在回调方法中处理该nack 命令。
+
+> 如果队列和消息是持久化的，那么确认消息会在消息写入磁盘之后发出。
+
+如何实现Confirm确认消息
 
 1. 在channel上开启确认模式：```channel.confirmSelect()```
 2. 在channel上添加监听：```addConfirmListener```，监听成功和失败的返回结果，根据具体的结果对消息进行重新发送、或记录日志等后续处理
@@ -442,18 +508,22 @@ channel.addConfirmListener(new ConfirmListener() {
 
 Consumer没有变化
 
-### 3-6 Return返回消息详解
+#### 3.5.3 注意
+
+* 事务机制和 Publisher Confirm 机制时互斥的
+* 事务机制和 Publisher Confirm 机制能保证正确发送至RabbitMQ的交换器，如果此交换器没有匹配的队列，那么消息也会丢失。此时需要发送方使用 mandatory 参数，详见【3.6 Return返回消息详解】
+
+### 3.6 Return返回消息详解
 
 Return消息机制：
 
 * Return Listener用于处理一些不可路由的消息
-* 消息生产者通过指定一个Exchange和RoutingKey，把消息送达到某一个队列中去，然后我们的消费者监听队列，进行消费处理操作
-* 但是在某些情况下，在发送消息时，当前的exchange不存在或者指定的路由key路由不到，这个时候我们需要监听这种不可达的消息，就要使用Return Listener
-* 有一个关键的配置项 **Mandatory**：如果为true，则监听器会接收到路由不可达的消息，然后进行后续处理；如果为false，那么broker端自动删除该消息
+* 某些情况下，在发送消息时，当前的exchange不存在或者指定的路由key路由不到，这个时候我们需要监听这种不可达的消息，就要使用Return Listener
+* 有一个关键的配置项 **mandatory**：如果为true，则监听器会接收到路由不可达的消息，然后进行后续处理；如果为false，那么broker端自动删除该消息
 
 ![](http://sherry-pic.oss-cn-hangzhou.aliyuncs.com/markdown_2018-10-24_22-26-27.png)
 
-### 3-7 自定义消费者
+### 3.7 自定义消费者
 
 之前的消费端使用while循环
 
@@ -497,7 +567,7 @@ class MyConsumer extends DefaultConsumer {
 }
 ```
 
-### 3-8 消费端的限流策略
+### 3.8 消费端的限流策略
 
 > 什么是消费端限流？
 
@@ -548,7 +618,7 @@ public class MyConsumer extends DefaultConsumer {
 }
 ```
 
-### 3-10 消费端ACK与重回队列机制
+### 3.10 消费端ACK与重回队列机制
 
 #### 消费端的手工ACK和NACK
 
@@ -622,7 +692,7 @@ class MyConsumer extends DefaultConsumer {
 }
 ```
 
-### 3-11 TTL消息详解
+### 3.11 TTL消息详解
 
 TTL：Time To Live的缩写，也就是生存时间。RabbitMQ支持消息的过期时间，在消息发送时可以进行指定。也支持队列的过期时间，从消息入队开始，只要超过了队列的超时时间配置，那么消息会自动清除
 
@@ -642,7 +712,7 @@ arguments.put("x-message-ttl", 10000);
 channel.queueDeclare(queueName, true, false, false, arguments);
 ```
 
-### 3-12 死信队列DLX
+### 3.12 死信队列DLX
 
 利用DLX，**当消息在一个队列中变成死信（dead message）之后，它能被重新publish到另一个Exchange（DLX）上**。
 
@@ -675,7 +745,20 @@ connection.close();
 
 ![](http://sherry-pic.oss-cn-hangzhou.aliyuncs.com/markdown_2018-10-29_22-14-08.png)
 
-## 第四章 整合RabbitMQ与Spring
+### 3.13 消息传输保障
+
+RabbitMQ 支持 "最多一次" 和 "最少一次"。
+
+"最少一次投递需要考虑以下这几个方面"：
+
+* 生产者开启 Publisher Confirm 机制，确保消息可以可靠地传输到 RabbitMQ 中
+* 生产者配合使用 `mandatory` 参数 来确保消息能够从交换器路由到队列中
+* 消息和队列都要进行持久化
+* 消费者手动 ack
+
+> RabbitMQ 没有去重机制保证 "恰好一次"，去重处理一般是在业务客户端实现，比如引入 Global Unique Identifier。
+
+
 
 
 
