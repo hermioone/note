@@ -747,26 +747,406 @@ connection.close();
 
 ### 3.13 消息传输保障
 
-RabbitMQ 支持 "最多一次" 和 "最少一次"。
+### 4-2 SpringAMQP用户管理组件：RabbitAdmin
 
-"最少一次投递需要考虑以下这几个方面"：
+```java
+import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
+import org.springframework.amqp.rabbit.connection.ConnectionFactory;		// 注意这里和之前的ConnectionFactory不同，之前的是：com.rabbitmq.client.ConnectionFactory
+import org.springframework.amqp.rabbit.core.RabbitAdmin;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 
-* 生产者开启 Publisher Confirm 机制，确保消息可以可靠地传输到 RabbitMQ 中
-* 生产者配合使用 `mandatory` 参数 来确保消息能够从交换器路由到队列中
-* 消息和队列都要进行持久化
-* 消费者手动 ack
+@Configuration
+//@ComponentScan(value = {"com.vermouth.*"})
+public class RabbitMQConfig {
 
-> RabbitMQ 没有去重机制保证 "恰好一次"，去重处理一般是在业务客户端实现，比如引入 Global Unique Identifier。
+    @Bean
+    public ConnectionFactory connectionFactory() {
+        CachingConnectionFactory connectionFactory = new CachingConnectionFactory();
+
+        connectionFactory.setAddresses(RabbitMQConstant.ADDRESS);
+        connectionFactory.setUsername("guest");
+        connectionFactory.setPassword("guest");
+        connectionFactory.setVirtualHost("/");
+
+        return connectionFactory;
+    }
+
+    /**
+     * @param connectionFactory 使用@Bean注解可自动注入其它的bean，但是名字(connectionFactory)必须和Bean的名字(connectionFactory())一样
+     */
+    @Bean
+    public RabbitAdmin rabbitAdmin(ConnectionFactory connectionFactory) {
+        RabbitAdmin rabbitAdmin = new RabbitAdmin(connectionFactory);
+        rabbitAdmin.setAutoStartup(true);           // 这个一定要配置成true，否则Spring容器不会加载RabbitAdmin类
+        return rabbitAdmin;
+    }
+}
+```
+
+可以使用RabbitAdmin来管理Exchange，Queue
+
+```java
+@RunWith(SpringRunner.class)
+@SpringBootTest
+public class RabbitmqSpringApplicationTests {
+
+    @Autowired
+    private RabbitAdmin rabbitAdmin;
+
+    @Test
+    public void testAdmin() throws Exception {
+        Assert.assertNotNull(rabbitAdmin);
+
+        rabbitAdmin.declareExchange(new DirectExchange("test.direct", false, false));
+        rabbitAdmin.declareQueue(new Queue("test.direct.queue", false));
+
+        rabbitAdmin.declareBinding(new Binding("test.direct.queue", Binding.DestinationType.QUEUE,
+                "test.direct", "direct", new HashMap<>()));
+
+        // 必须要先declareExchange和declareQueue，否则后面直接绑定会报错
+        rabbitAdmin.declareExchange(new TopicExchange("test.topic", false, false));
+        rabbitAdmin.declareQueue(new Queue("test.topic.queue", false));
+        rabbitAdmin.declareBinding(BindingBuilder
+                .bind(new Queue("test.topic.queue", false))		// name, durable
+                .to(new TopicExchange("test.topic", false, false))	// name, durable, autoDelete
+                .with("user.#"));
+    }
+
+}
+```
+
+### 4-4 RabbitAdmin分析
+
+RabbitAdmin底层实现就是从Spring容器中获取Exchange、Binding、RoutingKey以及Queue的@Bean声明，然后使用RabbitTemplate的```execute()```执行对应的声明、修改、删除等一系列RabbitMQ基础功能操作。
+
+### 4-5 SpringAMQP声明式配置使用
+
+在Rabbit基础API里声明一个Exchange、绑定、队列：
+
+```java
+channel.exchangeDeclare(exchangeName, exchangeType, true, false, false, null);
+channel.queueDeclare(queueName, fals,e false, false, null);
+channel.queueBind(queueName, exchangeName, routingKey);
+```
+
+使用SpringAMQP去声明，只需使用@Bean方式
+
+```java
+@Bean
+public TopicExchange exchange001() {
+    return new TopicExchange("topic001", true, false);
+}
+
+@Bean
+public Queue queue001() {
+    return new Queue("queue001", true);
+}
+
+@Bean
+public Binding binding001() {
+    return BindingBuilder.bind(queue001()).to(exchange001()).with("mq.*");
+}
+```
+
+### 4-6 RabbitTemplate实战
+
+在与SpringAMQP整合的时候发送消息的关键类。该类提供了丰富的发送消息方法，包括可靠性投递消息方法、回调监听消息接口```ConfirmCallback```，返回值确认接口```ReturnCallback```等等。也需要先注入到Spring容器中才能使用。
+
+```java
+@Bean
+public RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory) {
+    return new RabbitTemplate(connectionFactory);
+}
+```
+
+```java
+@Test
+public void testSendMessage2() throws Exception {
+    MessageProperties props = new MessageProperties();
+    props.setContentType("text/plain");
+    Message message = new Message("Leihou, RabbitMQ".getBytes(), props);
+    rabbitTemplate.send("topic001", "spring.amqp", message);
+
+    rabbitTemplate.convertAndSend("topic001", "spring.amqp", "Leihou, RabbitMQ");
+}
+```
+
+### 4-7 SimpleMessageListenerContainer
+
+* 监听队列，自动启动，自动声明功能
+* 设置事务特性
+* 设置消费者数量
+* 设置消息确认和自动确认模式
+* 设置消费者标签生成策略
+
+```java
+@Bean
+public SimpleMessageListenerContainer messageContainer(ConnectionFactory connectionFactory) {
+    SimpleMessageListenerContainer container = 
+        new SimpleMessageListenerContainer(connectionFactory);
+
+    container.setQueues(queue001());
+    container.setConcurrentConsumers(1);
+    container.setMaxConcurrentConsumers(5);
+    container.setDefaultRequeueRejected(false);         // false不会requeue
+    container.setAcknowledgeMode(AcknowledgeMode.AUTO);     // 自动签收
+    container.setConsumerTagStrategy(queue -> queue + "_" + UUID.randomUUID().toString());
+    container.setMessageListener(new ChannelAwareMessageListener() {
+        @Override
+        public void onMessage(Message message, Channel channel) throws Exception {
+            String msg = new String(message.getBody());
+            System.out.println("-------------消费者：" + msg);
+        }
+    });
+
+    return container;
+}
+```
+
+![](http://sherry-pic.oss-cn-hangzhou.aliyuncs.com/markdown_2018-10-31_20-12-10.png)
+
+SimpleMessageListenerContainer相当于声明了一个消费者
+
+### 4-8 MessageListenerAdaper使用
+
+消息监听适配器
+
+```java
+@Bean
+public SimpleMessageListenerContainer messageContainer(ConnectionFactory connectionFactory) {
+    SimpleMessageListenerContainer container = 
+        new SimpleMessageListenerContainer(connectionFactory);
+
+    container.setQueues(queue001());
+    container.setConcurrentConsumers(1);
+    container.setMaxConcurrentConsumers(5);
+    container.setDefaultRequeueRejected(false);         // false不会requeue
+    container.setAcknowledgeMode(AcknowledgeMode.AUTO);     // 自动签收
+    container.setConsumerTagStrategy(queue -> queue + "_" + UUID.randomUUID().toString());
+
+    MessageListenerAdapter adapter = new MessageListenerAdapter(new MessageDelegate());
+    adapter.setDefaultListenerMethod("consumeMessage");	// 把默认方法名改为consumeMessage
+    // adapter.setMessageConverter();   传给consumeMessage的默认参数是String，通过这个方法可以修改
+    container.setMessageListener(adapter);
+
+    return container;
+}
 
 
+public class MessageDelegate {
+    /**
+     * MessageListenerAdapter默认调用的方法名：handleMessage
+     */
+    public void handleMessage(String msg) {
+        System.err.println("默认方法，消息内容：" + msg);
+    }
 
+    public void consumeMessage(String msg) {
+        System.err.println("自定义方法，消息内容：" + msg);
+    }
+}
+```
 
+或者可以将队列和方法绑定
 
+```java
+@Bean
+public SimpleMessageListenerContainer messageContainer(ConnectionFactory connectionFactory) {
+    SimpleMessageListenerContainer container = new SimpleMessageListenerContainer(connectionFactory);
 
+    // ..
 
+    MessageListenerAdapter adapter = new MessageListenerAdapter(new MessageDelegate());
+    Map<String, String> map = new HashMap<>();
+    map.put("queue001", "method001");         // 将queue001这个队列和method001这个方法绑定，凡是路由到queue001队列的消息都会被method001处理
+    adapter.setQueueOrTagToMethodName(map);
+    container.setMessageListener(adapter);
 
+    return container;
+}
 
+public class MessageDelegate {
+    public void handleMessage(String msg) {
+        System.err.println("默认方法，消息内容：" + msg);
+    }
 
+    public void consumeMessage(String msg) {
+        System.err.println("自定义方法，消息内容：" + msg);
+    }
+    
+    public void method001(String msg) {
+        System.err.println("method001方法，消息内容：" + msg);
+    }
+}
+```
+
+![](http://sherry-pic.oss-cn-hangzhou.aliyuncs.com/markdown_2018-10-31_20-46-20.png)
+
+### 4-13 RabbitMQ与SpringBoot整合
+
+```properties
+spring.rabbitmq.addresses=localhost:5672
+
+# 默认就是guest
+spring.rabbitmq.username=guest
+# 默认就是guest
+spring.rabbitmq.password=guest
+# 默认就是/
+spring.rabbitmq.virtual-host=/
+#spring.rabbitmq.connection-timeout=15000
+
+# 实现一个监听器用于监听Broker端给我们返回的确认请求:rabbitTemplate.setConfirmCallback();
+spring.rabbitmq.publisher-confirms=true
+# spring.rabbitmq.listener.simple.acknowledge-mode=auto 2.0.2版本不需要加这个配置，但是2.0.6需要加上这个配置
+
+# 对不可达的消息进行后续的处理（需要mandatory=true），保证消息的路由成功:rabbitTemplate.setReturnCallback();
+spring.rabbitmq.publisher-returns=true
+spring.rabbitmq.template.mandatory=true
+```
+
+```java
+@Component
+public class RabbitSender {
+
+    @Autowired
+    private RabbitTemplate rabbitTemplate;
+
+    private final RabbitTemplate.ConfirmCallback confirmCallback = 
+        (correlationData, ack, cause) -> {
+            System.err.println("correlationData: " + correlationData);
+            System.err.println("ack: " + ack);
+            System.err.println("cause: " + cause);
+            if (!ack) {
+                System.err.println("异常处理...");
+            }
+    	};
+
+    private final RabbitTemplate.ReturnCallback returnCallback = 
+        (message, replyCode, replyText, exchange, routingKey) -> {
+        	System.err.println("return exchange: " + exchange 
+                               + ", routingKey: " + routingKey 
+                               + ", replyCode: " + replyCode
+                               + ", replyText: " + replyText);
+    	};
+
+    public void send(Object message, Map<String, Object> props) throws Exception {
+        MessageHeaders mhs = new MessageHeaders(props);
+        Message msg = MessageBuilder.createMessage(message, mhs);
+        rabbitTemplate.setConfirmCallback(confirmCallback);
+        rabbitTemplate.setReturnCallback(returnCallback);
+
+        CorrelationData cd = new CorrelationData();
+        cd.setId("vermouth");       // id + 时间戳 应该全局唯一
+        rabbitTemplate.convertAndSend("exchange-1", "springboot.hello", msg, cd);
+
+    }
+}
+```
+
+![](http://sherry-pic.oss-cn-hangzhou.aliyuncs.com/markdown_2018-10-31_22-48-41.png)
+
+![](http://sherry-pic.oss-cn-hangzhou.aliyuncs.com/markdown_2018-10-31_22-51-26.png)
+
+## 第五章 高可靠，构建RabbitMQ集群架构
+
+### 5-2 RabbitMQ集群架构模式
+
+#### 主备模式
+
+***主备模式***：（主节点提供读写，从节点不提供任何读写，只是备用；主从是主节点读写，从节点只读）实现RabbitMQ的高可用集群，一般在并发和数据量不高的情况下，这种模型非常地好用且简单。主备模式也成为Warren模式。从节点的目的是主节点宕机的时候，能够自动切换到从节点，此时从节点变成主节点继续提供读写。和activemq利用zookeeper做主备一样。
+
+![](http://sherry-pic.oss-cn-hangzhou.aliyuncs.com/markdown_2018-11-05_20-08-53.png)
+
+#### 远程模式
+
+***远程模式***：远程模式可以实现双活的一种模式，简称Shovel模式，所谓Shovel就是我们可以把消息进行不同数据中心的复制工作，我们可以跨地域地让两个mq集群互联。
+
+![](http://sherry-pic.oss-cn-hangzhou.aliyuncs.com/markdown_2018-11-05_20-18-29.png)
+
+这种模式用得不多。
+
+#### 镜像模式
+
+***镜像模式***：保证100%数据不丢失，在实际工作中也是用的最多的。并且实现集群非常简单。
+
+镜像队列，目的是为了保证rabbitmq数据的高可靠性解决方案，主要就是实现数据的同步，一般来讲实验2-3个节点。
+
+![](http://sherry-pic.oss-cn-hangzhou.aliyuncs.com/markdown_2018-11-05_22-23-31.png)
+
+#### 多活模式
+
+***多活模式***：这种模式也是实现异地数据复制的主流模式，因为Shovel模式配置比较复杂。这种模型需要依赖rabbitmq的federation插件。采用多中心模式，那么在多个数据中心各部署一套RabbitMQ集群，各中心的RabbitMQ服务除了需要为业务提供正常地消息服务外，中心之间还需要实现部分队列消息共享。
+
+### 5-7 RabbitMQ集群整合负载均衡基础组件HaProxy
+
+HAProxy是一款提供高可用性，负载均衡以及基于TCP（第四层）和HTTP（第七层）应用的代理软件，支持虚拟主机，免费快速并且可靠。HAProxy特别适用于那些负载特大的web站点，这些站点通常又需要会话保持七层处理。HAProxy运行在时下的硬件上，完全可以支持数以万计的并发连接。
+
+### 5-11 RabbitMQ集群恢复与故障转移的5中解决方案
+
+节点A和B组成一个镜像队列，B是Master。
+
+#### 场景一：A先停，B后停
+
+**解决**：只要先启动B，再启动A即可。或者先启动A，30秒之后启动B即可回复镜像队列。
+
+#### 场景二：A、B同时停机
+
+**解决**：30s之内连续启动A和B即可
+
+#### 场景三：A先停、B后停、且A无法回复
+
+因为B是Master，所以等B起来之后，在B节点上调用控制台命令：```rabbitmqctl forget_cluster_node A``` 解除与A的Cluster关系，再将新的Slave节点加入B即可恢复镜像队列
+
+#### 场景四：A先停、B后停、且B无法恢复
+
+在3.1.x之前没有什么好的解决方案。因为B是主节点，所以直接启动A是不行的。在3.4.2以后，forget_cluster_node 支持 ```--offline``` 参数，就以为着当在A节点执行 ```rabbitmqctl forget_cluster_node --offline B``` 时，RabbitMQ会mock一个节点代表A，执行```forget_cluster_node```命令将B剔除cluster，然后A就可以正常启动了，最后将新的slave节点加入A即可重新恢复镜像队列。
+
+#### 场景五：A先停。B后停，且A、B均无法恢复，但是能得到A或B的磁盘文件
+
+只能通过恢复数据的方式去尝试恢复，将A或B的数据库文件默认在$RABBIT_HOME/var/lib/目录中，把它拷贝到新节点的对于mulxia，再将新节点的hostname改成A或B的hostname，如果是A节点（Slave）的磁盘文件，择按照场景4处理即可，如果是B节点（Master）的磁盘文件，择按照场景3处理，最后将新的Slave加入到新节点后完成恢复
+
+## 第六章 SET化架构衍化与设计
+
+### 6-2 衍变之路
+
+对于庞大的大型分布式集群来说，会面临以下问题：
+
+* 容灾问题
+* 资源扩展问题
+* 大集群拆分问题
+
+#### 1. 容灾问题
+
+核心服务（比如订单服务）挂掉，会影响全网所有用户，导致整个业务不可用。数据库主库集中在一个IDC，主机房挂掉，会影响全网所有用户，整个业务无法快速切换和恢复。
+
+#### 2. 资源扩展问题
+
+单IDC的资源（机器、网络带宽等）以及没法满足，扩展IDC时，存在跨机房访问时延问题（增加异地机房时，时延问题更加严重）；数据库主库单点，连接数有限，不能支持应用程序的持续扩展。
+
+#### 3. 大集群拆分问题
+
+分布式集群闺蜜扩大后，会相应地带来资源扩展、大集群拆分以及容灾问题
+
+所以处于业务扩展性和容灾需求的考虑，需要一套从底层架构彻底解决问题的方案，业界主流解决方案：
+
+***单元化架构方案***
+
+#### 同城“双活”架构介绍
+
+业务层面上以及做到真正的双活（或者多活），分别承担部分流量；
+
+存储层面比如定时任务、缓存、持久层、数据分析等都是主从架构，会有跨机房写；
+
+一个数据中心故障，可以手动切换流量，部分组件可以自动切换
+
+#### 两地三中心结构介绍
+
+使用灾备的思想，在同城"双活"的基础上，在异地部署一套灾备数据中心，每个中心都具有完备的数据处理能力，只有当主节点故障需要容灾的时候才会紧急启动备用数据中心。
+
+**问题**：异地备份中心不工作，关键时刻不敢切；本质上数据仍然单点写，数据库瓶颈无法解
+
+#### SET化方案介绍
 
 
 
